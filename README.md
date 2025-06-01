@@ -45,6 +45,7 @@ HedgeKit is a schema-driven frontend code generation platform that leverages mul
 ## 🎨 Demo & Prototype
 
 Check out the [HedgeKit UI Prototype](https://v0.dev/chat/polishing-agent-builder-2B1HzpJR21G) on v0.dev to see the design and user experience concepts behind the platform.
+And the initial planning and generation exchange on [YouTube](https://youtu.be/JwqSSXch08k)
 
 ## 🚀 Getting Started
 
