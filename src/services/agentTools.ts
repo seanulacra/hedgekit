@@ -1,0 +1,346 @@
+import { ComponentGenerator } from '../lib/generator'
+import { V0GenerationService } from './v0Generation'
+import type { ProjectSchema, ComponentSchema, ImageAsset } from '../types/schema'
+
+// Tool definitions for OpenAI function calling
+export const agentTools = [
+  {
+    type: "function" as const,
+    function: {
+      name: "analyze_project_state",
+      description: "Analyze the current project to understand components, assets, and overall structure",
+      parameters: {
+        type: "object",
+        properties: {},
+        required: []
+      }
+    }
+  },
+  {
+    type: "function" as const,
+    function: {
+      name: "generate_component",
+      description: "Generate a new React component using OpenAI or v0",
+      parameters: {
+        type: "object",
+        properties: {
+          name: {
+            type: "string",
+            description: "Name for the component"
+          },
+          description: {
+            type: "string", 
+            description: "Description of what the component should do"
+          },
+          provider: {
+            type: "string",
+            enum: ["openai", "v0"],
+            description: "Which AI service to use for generation"
+          }
+        },
+        required: ["name", "description"]
+      }
+    }
+  },
+  {
+    type: "function" as const,
+    function: {
+      name: "generate_image_asset",
+      description: "Generate an image asset using OpenAI's gpt-image-1 model",
+      parameters: {
+        type: "object",
+        properties: {
+          name: {
+            type: "string",
+            description: "Name for the image asset"
+          },
+          prompt: {
+            type: "string",
+            description: "Detailed prompt for image generation"
+          },
+          background: {
+            type: "string",
+            enum: ["transparent", "opaque", "auto"],
+            description: "Background type for the image"
+          },
+          size: {
+            type: "string",
+            enum: ["256x256", "512x512", "1024x1024", "1792x1024", "1024x1792"],
+            description: "Size of the generated image"
+          }
+        },
+        required: ["name", "prompt"]
+      }
+    }
+  },
+  {
+    type: "function" as const,
+    function: {
+      name: "edit_image_asset",
+      description: "Edit an existing image asset using AI",
+      parameters: {
+        type: "object",
+        properties: {
+          assetId: {
+            type: "string",
+            description: "ID of the image asset to edit"
+          },
+          editPrompt: {
+            type: "string",
+            description: "Instructions for how to edit the image"
+          }
+        },
+        required: ["assetId", "editPrompt"]
+      }
+    }
+  },
+  {
+    type: "function" as const,
+    function: {
+      name: "get_webcontainer_preview",
+      description: "Get information about the current live preview state",
+      parameters: {
+        type: "object",
+        properties: {},
+        required: []
+      }
+    }
+  }
+]
+
+// Tool execution functions
+export class AgentToolExecutor {
+  constructor(
+    private project: ProjectSchema,
+    private updateProject: (updater: (prev: ProjectSchema) => ProjectSchema) => void
+  ) {}
+
+  async executeFunction(functionName: string, args: any): Promise<any> {
+    switch (functionName) {
+      case "analyze_project_state":
+        return this.analyzeProjectState()
+      
+      case "generate_component":
+        return this.generateComponent(args)
+      
+      case "generate_image_asset":
+        return this.generateImageAsset(args)
+      
+      case "edit_image_asset":
+        return this.editImageAsset(args)
+      
+      case "get_webcontainer_preview":
+        return this.getWebContainerPreview()
+      
+      default:
+        throw new Error(`Unknown function: ${functionName}`)
+    }
+  }
+
+  private analyzeProjectState() {
+    const analysis = {
+      project_name: this.project.name,
+      framework: this.project.framework,
+      total_components: this.project.components.length,
+      components: this.project.components.map(c => ({
+        name: c.name,
+        has_generated_code: !!c.generatedCode,
+        generation_method: c.generationMethod,
+        source: c.source
+      })),
+      total_assets: this.project.assets?.length || 0,
+      assets: (this.project.assets || []).map(a => ({
+        name: a.name,
+        type: 'image',
+        format: a.format,
+        prompt: a.prompt,
+        created_at: a.createdAt
+      })),
+      dependencies: Object.keys(this.project.dependencies || {}),
+      last_updated: this.project.updatedAt
+    }
+    
+    return {
+      success: true,
+      data: analysis,
+      summary: `Project "${this.project.name}" has ${this.project.components.length} components and ${this.project.assets?.length || 0} assets. Built with ${this.project.framework}.`
+    }
+  }
+
+  private async generateComponent(args: { name: string, description: string, provider?: string }) {
+    try {
+      const { name, description, provider = 'openai' } = args
+      
+      let component: ComponentSchema
+      
+      if (provider === 'v0' && V0GenerationService.isV0Available()) {
+        const result = await V0GenerationService.generateComponent({
+          prompt: description,
+          projectContext: {
+            framework: this.project.framework,
+            components: this.project.components.map(c => c.name),
+            dependencies: this.project.dependencies || {}
+          }
+        })
+        
+        component = {
+          id: `comp-${Date.now()}`,
+          name: result.componentName || name,
+          type: 'component',
+          framework: 'react',
+          props: {},
+          source: 'custom',
+          generatedCode: result.code,
+          generationMethod: 'v0'
+        }
+      } else {
+        const generator = new ComponentGenerator()
+        generator.setApiKey(import.meta.env.VITE_OPEN_AI_KEY)
+        
+        const result = await generator.generateComponent({
+          prompt: description,
+          projectSchema: this.project
+        })
+        
+        component = result
+      }
+
+      // Update project with new component
+      this.updateProject(prev => ({
+        ...prev,
+        components: [...prev.components, component],
+        updatedAt: new Date().toISOString()
+      }))
+
+      return {
+        success: true,
+        data: { component },
+        summary: `Generated component "${component.name}" using ${provider}. Added to project.`
+      }
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Component generation failed',
+        summary: `Failed to generate component: ${error instanceof Error ? error.message : 'Unknown error'}`
+      }
+    }
+  }
+
+  private async generateImageAsset(args: { name: string, prompt: string, background?: string, size?: string }) {
+    try {
+      const { name, prompt, background = 'transparent', size = '1024x1024' } = args
+      
+      // Dynamic import to avoid build conflicts
+      const { ImageGenerationService } = await import('./imageGeneration')
+      
+      const result = await ImageGenerationService.generateImage({
+        prompt,
+        model: 'gpt-image-1',
+        background: background as any,
+        size,
+        output_format: 'png',
+        quality: 'high'
+      })
+
+      const imageAsset: ImageAsset = {
+        id: `img-${Date.now()}`,
+        name,
+        prompt,
+        base64: result.data[0].b64_json!,
+        format: 'png',
+        size,
+        background: background as any,
+        model: 'gpt-image-1',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      }
+
+      // Update project with new asset
+      this.updateProject(prev => ({
+        ...prev,
+        assets: [...(prev.assets || []), imageAsset],
+        updatedAt: new Date().toISOString()
+      }))
+
+      return {
+        success: true,
+        data: { imageAsset },
+        summary: `Generated image "${name}" with prompt "${prompt}". Added to project assets.`
+      }
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Image generation failed',
+        summary: `Failed to generate image: ${error instanceof Error ? error.message : 'Unknown error'}`
+      }
+    }
+  }
+
+  private async editImageAsset(args: { assetId: string, editPrompt: string }) {
+    try {
+      const { assetId, editPrompt } = args
+      
+      const asset = this.project.assets?.find(a => a.id === assetId)
+      if (!asset) {
+        throw new Error(`Asset with ID ${assetId} not found`)
+      }
+
+      // Dynamic import to avoid build conflicts
+      const { ImageGenerationService } = await import('./imageGeneration')
+      
+      const result = await ImageGenerationService.editImage(
+        asset.base64,
+        editPrompt,
+        {
+          background: asset.background,
+          size: asset.size,
+          quality: 'high'
+        }
+      )
+
+      // Update the asset with new image
+      this.updateProject(prev => ({
+        ...prev,
+        assets: (prev.assets || []).map(a => 
+          a.id === assetId 
+            ? { 
+                ...a, 
+                base64: result.data[0].b64_json!,
+                prompt: `${a.prompt} | Edited: ${editPrompt}`,
+                updatedAt: new Date().toISOString() 
+              }
+            : a
+        ),
+        updatedAt: new Date().toISOString()
+      }))
+
+      return {
+        success: true,
+        data: { assetId, editPrompt },
+        summary: `Edited image "${asset.name}" with prompt "${editPrompt}". Asset updated.`
+      }
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Image editing failed',
+        summary: `Failed to edit image: ${error instanceof Error ? error.message : 'Unknown error'}`
+      }
+    }
+  }
+
+  private getWebContainerPreview() {
+    // This would ideally connect to the WebContainer instance
+    // For now, return project structure info
+    return {
+      success: true,
+      data: {
+        status: 'running',
+        components_count: this.project.components.length,
+        has_assets: (this.project.assets?.length || 0) > 0,
+        framework: this.project.framework,
+        last_build: this.project.updatedAt
+      },
+      summary: `WebContainer preview is running with ${this.project.components.length} components`
+    }
+  }
+}
