@@ -40,10 +40,11 @@ export class OpenAIAgentProvider implements IAgentProvider {
 
   async chatWithAgent(
     request: AgentChatRequest,
-    updateProject: (updater: (prev: ProjectSchema) => ProjectSchema) => void
+    updateProject: (updater: (prev: ProjectSchema) => ProjectSchema) => void,
+    uiActions?: import('../agentTools').UIActions
   ): Promise<AgentChatResponse> {
     try {
-      const toolExecutor = new AgentToolExecutor(request.project, updateProject)
+      const toolExecutor = new AgentToolExecutor(request.project, updateProject, uiActions)
       
       // Build conversation history for OpenAI
       const messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [

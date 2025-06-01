@@ -6,6 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { ProjectSchema } from '../types/schema'
 import { AgentOrchestrator } from '../services/agentOrchestrator'
 import type { AgentMessage, AgentProvider } from '../types/agent'
+import type { UIActions } from '../services/agentTools'
 import { Loader2, Send, Bot, User, Wrench, Settings, Zap } from 'lucide-react'
 
 interface Message {
@@ -25,9 +26,10 @@ interface Message {
 interface AgentChatProps {
   project: ProjectSchema
   onUpdateProject: (updater: (prev: ProjectSchema) => ProjectSchema) => void
+  uiActions?: UIActions
 }
 
-export function AgentChat({ project, onUpdateProject }: AgentChatProps) {
+export function AgentChat({ project, onUpdateProject, uiActions }: AgentChatProps) {
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
   const [isThinking, setIsThinking] = useState(false)
@@ -106,7 +108,8 @@ export function AgentChat({ project, onUpdateProject }: AgentChatProps) {
           conversationHistory: convertToAgentMessages(messages),
           provider: currentProvider
         },
-        onUpdateProject
+        onUpdateProject,
+        uiActions
       )
 
       const agentResponse: Message = {
@@ -145,9 +148,10 @@ export function AgentChat({ project, onUpdateProject }: AgentChatProps) {
   const currentProviderInfo = orchestrator.getProviderInfo(currentProvider)
 
   return (
-    <div className="h-full flex flex-col gap-4">
-      {/* Header with project info and agent selection */}
-      <div className="flex items-center justify-between gap-4">
+    <div className="h-full flex flex-col">
+      {/* Header Section */}
+      <div className="space-y-4 pb-4">
+        {/* Header with project info */}
         <div className="flex gap-2 text-sm text-muted-foreground">
           <Badge variant="outline">{project.components.length} components</Badge>
           <Badge variant="outline">{project.assets?.length || 0} assets</Badge>
@@ -158,7 +162,7 @@ export function AgentChat({ project, onUpdateProject }: AgentChatProps) {
         <div className="flex items-center gap-2">
           <Settings className="h-4 w-4 text-muted-foreground" />
           <Select value={currentProvider} onValueChange={handleProviderChange}>
-            <SelectTrigger className="w-[200px]">
+            <SelectTrigger className="w-full">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -173,26 +177,28 @@ export function AgentChat({ project, onUpdateProject }: AgentChatProps) {
             </SelectContent>
           </Select>
         </div>
-      </div>
 
-      {/* Current provider info */}
-      {currentProviderInfo && (
-        <div className="text-xs text-muted-foreground bg-muted/30 rounded-lg p-3">
-          <div className="font-medium flex items-center gap-2">
-            <Bot className="h-3 w-3" />
-            {currentProviderInfo.displayName}
+        {/* Current provider info */}
+        {currentProviderInfo && (
+          <div className="text-xs text-muted-foreground bg-muted/30 rounded-lg p-3">
+            <div className="font-medium flex items-center gap-2">
+              <Bot className="h-3 w-3" />
+              {currentProviderInfo.displayName}
+            </div>
+            <div className="mt-1">{currentProviderInfo.description}</div>
+            <div className="mt-2 flex gap-1 flex-wrap">
+              {currentProviderInfo.capabilities.map((cap, idx) => (
+                <Badge key={idx} variant="secondary" className="text-xs">
+                  {cap}
+                </Badge>
+              ))}
+            </div>
           </div>
-          <div className="mt-1">{currentProviderInfo.description}</div>
-          <div className="mt-2 flex gap-1 flex-wrap">
-            {currentProviderInfo.capabilities.map((cap, idx) => (
-              <Badge key={idx} variant="secondary" className="text-xs">
-                {cap}
-              </Badge>
-            ))}
-          </div>
-        </div>
-      )}
-      <div className="flex-1 overflow-y-auto space-y-4">
+        )}
+      </div>
+      
+      {/* Messages Area */}
+      <div className="flex-1 overflow-y-auto space-y-4 min-h-0">
           {messages.map((message) => (
             <div
               key={message.id}
@@ -271,21 +277,26 @@ export function AgentChat({ project, onUpdateProject }: AgentChatProps) {
         <div ref={messagesEndRef} />
       </div>
 
-      <div className="flex gap-2">
-        <Input
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyPress={handleKeyPress}
-          placeholder={orchestrator.isAnyProviderAvailable() ? "Describe what you want to build or improve..." : "Configure API keys to enable agent capabilities"}
-          disabled={isThinking || !orchestrator.isAnyProviderAvailable()}
-        />
-        <Button 
-          onClick={handleSendMessage} 
-          disabled={!input.trim() || isThinking || !orchestrator.isAnyProviderAvailable()}
-          size="icon"
-        >
-          <Send className="h-4 w-4" />
-        </Button>
+      {/* Chat Input - Fixed to bottom */}
+      <div className="pt-3 border-t">
+        <div className="flex gap-2">
+          <Input
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyPress={handleKeyPress}
+            placeholder={orchestrator.isAnyProviderAvailable() ? "Ask me to build something..." : "Configure API keys to enable agent capabilities"}
+            disabled={isThinking || !orchestrator.isAnyProviderAvailable()}
+            className="flex-1 min-h-[44px]"
+          />
+          <Button 
+            onClick={handleSendMessage} 
+            disabled={!input.trim() || isThinking || !orchestrator.isAnyProviderAvailable()}
+            size="default"
+            className="h-[44px] w-[44px] shrink-0"
+          >
+            <Send className="h-4 w-4" />
+          </Button>
+        </div>
       </div>
         
       {!orchestrator.isAnyProviderAvailable() && (

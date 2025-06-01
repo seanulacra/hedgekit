@@ -40,7 +40,8 @@ export interface IAgentProvider {
   isAvailable(): boolean
   chatWithAgent(
     request: AgentChatRequest,
-    updateProject: (updater: (prev: any) => any) => void
+    updateProject: (updater: (prev: any) => any) => void,
+    uiActions?: import('../services/agentTools').UIActions
   ): Promise<AgentChatResponse>
 }
 

@@ -1,77 +1,102 @@
-import { Bot } from "lucide-react"
+import * as React from "react"
+import { Bot, MessageSquare, Zap } from "lucide-react"
 import { AgentChat } from "./AgentChat"
 import { ProjectSchema } from "../types/schema"
+import type { UIActions } from "../services/agentTools"
 import {
   Sidebar,
   SidebarContent,
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarGroupLabel,
   SidebarHeader,
+  SidebarInset,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
   SidebarProvider,
   SidebarTrigger,
-  useSidebar,
 } from "./ui/sidebar"
-import { Button } from "./ui/button"
 
-interface AgentSidebarProps {
+// Create the AI Agent Sidebar
+export function AIAgentSidebar({ project, onUpdateProject, uiActions, ...props }: {
   project: ProjectSchema
   onUpdateProject: (updater: (prev: ProjectSchema) => ProjectSchema) => void
-}
-
-function AgentFloatingTrigger() {
-  const { toggleSidebar, open } = useSidebar()
-  
-  // Hide the floating button when sidebar is open
-  if (open) return null
-  
+  uiActions?: UIActions
+} & React.ComponentProps<typeof Sidebar>) {
   return (
-    <Button 
-      onClick={toggleSidebar}
-      size="lg"
-      className="fixed bottom-6 right-6 h-14 w-14 rounded-full shadow-lg hover:shadow-xl transition-all z-40"
-    >
-      <Bot className="h-6 w-6" />
-    </Button>
-  )
-}
-
-export function AgentSidebarWrapper({ project, onUpdateProject, children }: AgentSidebarProps & { children: React.ReactNode }) {
-  return (
-    <SidebarProvider defaultOpen={false}>
-      <div className="flex min-h-screen w-full">
-        {/* Main Content */}
-        <div className="flex-1">
-          {children}
-        </div>
-        
-        {/* Agent Sidebar - Wider */}
-        <Sidebar 
-          side="right" 
-          variant="sidebar" 
-          collapsible="offcanvas"
-        >
-          <SidebarHeader className="border-b bg-sidebar-accent/50">
-            <div className="flex items-center gap-2 px-4 py-3">
-              <Bot className="h-5 w-5 text-sidebar-primary" />
-              <h2 className="text-lg font-semibold">AI Agent</h2>
-              <div className="ml-auto">
-                <SidebarTrigger />
+    <Sidebar collapsible="icon" {...props}>
+      <SidebarHeader>
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <SidebarMenuButton size="lg" asChild>
+              <div className="cursor-default">
+                <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
+                  <Bot className="size-4" />
+                </div>
+                <div className="grid flex-1 text-left text-sm leading-tight group-data-[collapsible=icon]:hidden">
+                  <span className="truncate font-semibold">AI Agent Studio</span>
+                  <span className="truncate text-xs">Multi-Provider</span>
+                </div>
               </div>
-            </div>
-            <p className="text-sm text-sidebar-foreground/70 px-4 pb-3">
-              Chat with your collaborative AI agent to build and improve components
-            </p>
-          </SidebarHeader>
-          
-          <SidebarContent className="p-4">
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        </SidebarMenu>
+      </SidebarHeader>
+      
+      <SidebarContent className="flex flex-col h-full">
+        <SidebarGroup className="group-data-[collapsible=icon]:hidden flex-1 flex flex-col">
+          <SidebarGroupLabel>Agent Chat</SidebarGroupLabel>
+          <SidebarGroupContent className="px-0 flex-1 flex flex-col">
             <AgentChat 
               project={project} 
               onUpdateProject={onUpdateProject}
+              uiActions={uiActions}
             />
-          </SidebarContent>
-        </Sidebar>
-        
-        {/* Floating Trigger */}
-        <AgentFloatingTrigger />
-      </div>
+          </SidebarGroupContent>
+        </SidebarGroup>
+      </SidebarContent>
+    </Sidebar>
+  )
+}
+
+// Main layout wrapper following shadcn pattern
+export function AgentSidebarWrapper({ 
+  project, 
+  onUpdateProject, 
+  uiActions, 
+  children 
+}: {
+  project: ProjectSchema
+  onUpdateProject: (updater: (prev: ProjectSchema) => ProjectSchema) => void
+  uiActions?: UIActions
+  children: React.ReactNode
+}) {
+  return (
+    <SidebarProvider
+      style={
+        {
+          "--sidebar-width": "24rem",
+        } as React.CSSProperties
+      }
+    >
+      <AIAgentSidebar 
+        project={project}
+        onUpdateProject={onUpdateProject}
+        uiActions={uiActions}
+      />
+      <SidebarInset>
+        <header className="flex h-16 shrink-0 items-center gap-2 px-4 border-b">
+          <SidebarTrigger className="-ml-1" />
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Bot className="size-4" />
+            <span>AI-Powered Component Builder</span>
+          </div>
+        </header>
+        <div className="flex flex-1 flex-col">
+          {children}
+        </div>
+      </SidebarInset>
     </SidebarProvider>
   )
 }

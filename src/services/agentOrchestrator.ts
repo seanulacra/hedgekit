@@ -7,6 +7,7 @@ import type {
 import { OpenAIAgentProvider } from './providers/openaiProvider'
 import { ClaudeAgentProvider, ClaudeOpusProvider } from './providers/claudeProvider'
 import type { ProjectSchema } from '../types/schema'
+import type { UIActions } from './agentTools'
 
 export class AgentOrchestrator {
   private providers: Map<AgentProvider, IAgentProvider> = new Map()
@@ -76,7 +77,8 @@ export class AgentOrchestrator {
 
   async chatWithAgent(
     request: AgentChatRequest,
-    updateProject: (updater: (prev: ProjectSchema) => ProjectSchema) => void
+    updateProject: (updater: (prev: ProjectSchema) => ProjectSchema) => void,
+    uiActions?: UIActions
   ): Promise<AgentChatResponse> {
     // Use specified provider or default to current
     const targetProvider = request.provider || this.currentProvider
@@ -93,7 +95,7 @@ export class AgentOrchestrator {
     }
 
     // Forward the request to the specific provider
-    return await provider.chatWithAgent(request, updateProject)
+    return await provider.chatWithAgent(request, updateProject, uiActions)
   }
 
   isAnyProviderAvailable(): boolean {

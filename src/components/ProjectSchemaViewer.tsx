@@ -8,19 +8,44 @@ import type { ProjectSchema, ComponentSchema } from '@/types/schema'
 
 interface ProjectSchemaViewerProps {
   schema: ProjectSchema
+  expandedComponents?: Set<string>
+  onToggleComponent?: (componentId: string) => void
 }
 
-export function ProjectSchemaViewer({ schema }: ProjectSchemaViewerProps) {
-  const [expandedComponents, setExpandedComponents] = useState<Set<string>>(new Set())
+export function ProjectSchemaViewer({ 
+  schema, 
+  expandedComponents: externalExpandedComponents, 
+  onToggleComponent 
+}: ProjectSchemaViewerProps) {
+  const [internalExpandedComponents, setInternalExpandedComponents] = useState<Set<string>>(new Set())
+  
+  // Use external state if provided, otherwise fall back to internal state
+  const expandedComponents = externalExpandedComponents ?? internalExpandedComponents
+  const setExpandedComponents = onToggleComponent ? 
+    (componentId: string) => onToggleComponent(componentId) :
+    (updater: ((prev: Set<string>) => Set<string>) | string) => {
+      if (typeof updater === 'string') {
+        const componentId = updater
+        setInternalExpandedComponents(prev => {
+          const newExpanded = new Set(prev)
+          if (newExpanded.has(componentId)) {
+            newExpanded.delete(componentId)
+          } else {
+            newExpanded.add(componentId)
+          }
+          return newExpanded
+        })
+      } else {
+        setInternalExpandedComponents(updater)
+      }
+    }
 
   const toggleComponentExpanded = (componentId: string) => {
-    const newExpanded = new Set(expandedComponents)
-    if (newExpanded.has(componentId)) {
-      newExpanded.delete(componentId)
+    if (onToggleComponent) {
+      onToggleComponent(componentId)
     } else {
-      newExpanded.add(componentId)
+      setExpandedComponents(componentId)
     }
-    setExpandedComponents(newExpanded)
   }
 
   const copyToClipboard = async (text: string) => {

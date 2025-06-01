@@ -5,14 +5,17 @@ import { WebContainerPreview } from './components/WebContainerPreview'
 import { ProjectManager } from './components/ProjectManager'
 import { ImageGenerator } from './components/ImageGenerator'
 import { ImageAssetManager } from './components/ImageAssetManager'
-import { AgentDrawer } from './components/AgentDrawer'
+import { AgentSidebarWrapper } from './components/AgentSidebar'
 import { ModeToggle } from './components/mode-toggle'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './components/ui/tabs'
 import { useProjectManager } from './hooks/useProjectManager'
 import type { ComponentSchema, ImageAsset } from './types/schema'
+import type { UIActions } from './services/agentTools'
 
 function App() {
   const [showProjectManager, setShowProjectManager] = useState(false)
+  const [activeTab, setActiveTab] = useState<'build' | 'project' | 'preview'>('build')
+  const [expandedComponents, setExpandedComponents] = useState<Set<string>>(new Set())
   const {
     projects,
     currentProject,
@@ -56,6 +59,21 @@ function App() {
     }))
   }
 
+  // UI Actions for agent tools
+  const uiActions: UIActions = {
+    switchTab: (tab: 'build' | 'project' | 'preview') => {
+      setActiveTab(tab)
+    },
+    showComponentCode: (componentId: string) => {
+      setActiveTab('project')
+      setExpandedComponents(prev => new Set([...prev, componentId]))
+    },
+    focusPreviewComponent: (componentId: string) => {
+      setActiveTab('preview')
+      // Could add more preview-specific focus logic here
+    }
+  }
+
   // Show project manager if no current project or user wants to switch
   if (!currentProject || showProjectManager) {
     return (
@@ -92,19 +110,23 @@ function App() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="container mx-auto p-6 space-y-6">
-        <div className="flex items-center justify-between mb-4">
-          <div className="text-center space-y-2 flex-1">
-            <h1 className="text-4xl font-bold">HedgeKit</h1>
-            <p className="text-xl text-muted-foreground">
-              Collaborative Agents for More Precise UI Generation
-            </p>
+    <AgentSidebarWrapper
+      project={currentProject}
+      onUpdateProject={updateCurrentProject}
+      uiActions={uiActions}
+    >
+        <div className="flex flex-1 flex-col gap-4 p-4">
+          <div className="flex items-center justify-between">
+            <div className="space-y-1">
+              <h1 className="text-2xl font-bold">HedgeKit</h1>
+              <p className="text-sm text-muted-foreground">
+                Collaborative Agents for More Precise UI Generation
+              </p>
+            </div>
+            <ModeToggle />
           </div>
-          <ModeToggle />
-        </div>
-        <div className="text-center">
-          <div className="flex items-center justify-center gap-4 text-sm">
+          
+          <div className="flex items-center gap-4 text-sm">
             <span className="text-blue-600 font-medium">
               📁 {currentProject.name}
             </span>
@@ -125,51 +147,58 @@ function App() {
               Switch Project
             </button>
           </div>
+          
+          <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'build' | 'project' | 'preview')} className="flex-1 flex flex-col">
+            <TabsList className="grid w-full grid-cols-3">
+              <TabsTrigger value="build">🔨 Build Tools</TabsTrigger>
+              <TabsTrigger value="project">📁 Project</TabsTrigger>
+              <TabsTrigger value="preview">👁️ Live Preview</TabsTrigger>
+            </TabsList>
+            
+            <TabsContent value="build" className="flex-1 mt-4">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 h-full">
+                <ComponentGeneratorInterface 
+                  projectSchema={currentProject}
+                  onComponentGenerated={handleComponentGenerated}
+                />
+                <ImageGenerator onImageGenerated={handleImageGenerated} />
+              </div>
+            </TabsContent>
+            
+            <TabsContent value="project" className="flex-1 mt-4">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 h-full">
+                <ProjectSchemaViewer 
+                  schema={currentProject} 
+                  expandedComponents={expandedComponents}
+                  onToggleComponent={(componentId) => {
+                    setExpandedComponents(prev => {
+                      const newExpanded = new Set(prev)
+                      if (newExpanded.has(componentId)) {
+                        newExpanded.delete(componentId)
+                      } else {
+                        newExpanded.add(componentId)
+                      }
+                      return newExpanded
+                    })
+                  }}
+                />
+                <ImageAssetManager 
+                  assets={currentProject.assets || []}
+                  onAssetUpdate={handleImageUpdate}
+                  onAssetDelete={handleImageDelete}
+                  onAssetAdd={handleImageGenerated}
+                />
+              </div>
+            </TabsContent>
+            
+            <TabsContent value="preview" className="flex-1 mt-4">
+              <div className="h-full">
+                <WebContainerPreview projectSchema={currentProject} />
+              </div>
+            </TabsContent>
+          </Tabs>
         </div>
-        
-        <Tabs defaultValue="build" className="w-full">
-          <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="build">🔨 Build Tools</TabsTrigger>
-            <TabsTrigger value="project">📁 Project</TabsTrigger>
-            <TabsTrigger value="preview">👁️ Live Preview</TabsTrigger>
-          </TabsList>
-          
-          <TabsContent value="build" className="mt-6">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 max-w-6xl mx-auto">
-              <ComponentGeneratorInterface 
-                projectSchema={currentProject}
-                onComponentGenerated={handleComponentGenerated}
-              />
-              <ImageGenerator onImageGenerated={handleImageGenerated} />
-            </div>
-          </TabsContent>
-          
-          <TabsContent value="project" className="mt-6">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 max-w-6xl mx-auto">
-              <ProjectSchemaViewer schema={currentProject} />
-              <ImageAssetManager 
-                assets={currentProject.assets || []}
-                onAssetUpdate={handleImageUpdate}
-                onAssetDelete={handleImageDelete}
-                onAssetAdd={handleImageGenerated}
-              />
-            </div>
-          </TabsContent>
-          
-          <TabsContent value="preview" className="mt-6">
-            <div className="max-w-full mx-auto">
-              <WebContainerPreview projectSchema={currentProject} />
-            </div>
-          </TabsContent>
-        </Tabs>
-      </div>
-
-      {/* Clean Agent Drawer */}
-      <AgentDrawer 
-        project={currentProject}
-        onUpdateProject={updateCurrentProject}
-      />
-    </div>
+    </AgentSidebarWrapper>
   )
 }
 
