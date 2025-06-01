@@ -8,6 +8,7 @@ import { Eye, Play, Square, Layers, Component } from 'lucide-react'
 import { SceneLiveView, useSceneLiveView } from './SceneLiveView'
 import { SceneCreationModal } from './SceneCreationModal'
 import { EmbeddedPreview } from './EmbeddedPreview'
+import { EmbeddedScenePreview } from './EmbeddedScenePreview'
 import { useSceneManager } from '../hooks/useSceneManager'
 import { ProjectSchema, ComponentSchema, ComponentInstance } from '../types/schema'
 import type { UIActions } from '../services/agentTools'
@@ -193,13 +194,21 @@ export function UnifiedPreview({ project, onUpdateProject, uiActions }: UnifiedP
           {previewMode === 'scene' && <SceneCompositionArea />}
         </div>
         
-        {/* Right Side - Live React Preview */}
+        {/* Right Side - Live Preview */}
         <div className="flex-1 min-w-0">
-          <EmbeddedPreview 
-            project={project}
-            focusComponent={selectedComponentId}
-            className="h-full"
-          />
+          {previewMode === 'component' ? (
+            <EmbeddedPreview 
+              project={project}
+              focusComponent={selectedComponentId}
+              className="h-full"
+            />
+          ) : (
+            <EmbeddedScenePreview 
+              project={project}
+              scene={activeScene}
+              className="h-full"
+            />
+          )}
         </div>
       </div>
     </div>
