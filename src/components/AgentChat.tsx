@@ -181,8 +181,7 @@ export function AgentChat({ project, onUpdateProject, uiActions }: AgentChatProp
         {/* Current provider info */}
         {currentProviderInfo && (
           <div className="text-xs text-muted-foreground bg-muted/30 rounded-lg p-3">
-            <div className="font-medium flex items-center gap-2">
-              <Bot className="h-3 w-3" />
+            <div className="font-medium">
               {currentProviderInfo.displayName}
             </div>
             <div className="mt-1">{currentProviderInfo.description}</div>
