@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { ComponentGeneratorInterface } from './components/ComponentGenerator'
 import { ProjectSchemaViewer } from './components/ProjectSchemaViewer'
 import { WebContainerPreview } from './components/WebContainerPreview'
+import { UnifiedPreview } from './components/UnifiedPreview'
 import { ProjectManager } from './components/ProjectManager'
 import { ImageGenerator } from './components/ImageGenerator'
 import { ImageAssetManager } from './components/ImageAssetManager'
@@ -193,7 +194,10 @@ function App() {
             
             <TabsContent value="preview" className="flex-1 mt-4">
               <div className="h-full">
-                <WebContainerPreview projectSchema={currentProject} />
+                <UnifiedPreview 
+                  project={currentProject} 
+                  onUpdateProject={updateCurrentProject}
+                />
               </div>
             </TabsContent>
           </Tabs>

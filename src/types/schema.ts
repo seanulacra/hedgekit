@@ -39,6 +39,68 @@ export interface ImageAsset {
   updatedAt: string
 }
 
+// Scene composition types
+export interface ComponentInstance {
+  id: string
+  componentId: string // References ComponentSchema.id
+  props: Record<string, any> // Instance-specific prop values
+  position: {
+    x: number
+    y: number
+    z?: number // For layering
+  }
+  size: {
+    width: number | 'auto'
+    height: number | 'auto'
+  }
+  constraints?: {
+    minWidth?: number
+    maxWidth?: number
+    minHeight?: number
+    maxHeight?: number
+  }
+  metadata?: {
+    label?: string
+    locked?: boolean
+    visible?: boolean
+  }
+}
+
+export interface SceneLayout {
+  type: 'freeform' | 'grid' | 'flex'
+  container: {
+    width: number
+    height: number
+    background?: string
+  }
+  grid?: {
+    columns: number
+    rows: number
+    gap: number
+  }
+  flex?: {
+    direction: 'row' | 'column'
+    wrap: boolean
+    justify: 'start' | 'center' | 'end' | 'space-between' | 'space-around'
+    align: 'start' | 'center' | 'end' | 'stretch'
+  }
+}
+
+export interface Scene {
+  id: string
+  name: string
+  description?: string
+  layout: SceneLayout
+  instances: ComponentInstance[]
+  viewport: {
+    width: number
+    height: number
+    scale: number
+  }
+  createdAt: string
+  updatedAt: string
+}
+
 export interface ProjectSchema {
   id: string
   name: string
@@ -46,6 +108,8 @@ export interface ProjectSchema {
   framework: 'react'
   components: ComponentSchema[]
   assets: ImageAsset[]
+  scenes: Scene[]
+  activeSceneId?: string // Currently active scene for live view
   dependencies: Record<string, string>
   createdAt: string
   updatedAt: string

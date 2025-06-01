@@ -89,11 +89,12 @@ export function useProjectManager() {
     })
   }, [])
 
-  const createProject = useCallback((projectData: Omit<ProjectSchema, 'components' | 'assets' | 'updatedAt'>) => {
+  const createProject = useCallback((projectData: Omit<ProjectSchema, 'components' | 'assets' | 'scenes' | 'updatedAt'>) => {
     const newProject: ProjectSchema = {
       ...projectData,
       components: [],
       assets: [],
+      scenes: [],
       updatedAt: new Date().toISOString()
     }
 
@@ -120,6 +121,7 @@ export function useProjectManager() {
             framework: metadata.framework,
             components: [],
             assets: [],
+            scenes: [],
             dependencies: {},
             createdAt: metadata.createdAt,
             updatedAt: metadata.updatedAt
