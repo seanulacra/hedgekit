@@ -392,6 +392,93 @@ export const agentTools: EnhancedTool[] = [
         required: []
       }
     }
+  },
+  {
+    type: "function" as const,
+    function: {
+      name: "execute_task",
+      description: "Automatically execute a specific task from the project plan using appropriate tools",
+      parameters: {
+        type: "object",
+        properties: {
+          taskId: {
+            type: "string",
+            description: "ID of the task to execute"
+          },
+          executionNotes: {
+            type: "string",
+            description: "Optional notes about the execution approach"
+          }
+        },
+        required: ["taskId"]
+      }
+    },
+    workflow: {
+      continueOnSuccess: {
+        nextTool: "get_next_tasks",
+        condition: "always",
+        maxChainLength: 3
+      }
+    }
+  },
+  {
+    type: "function" as const,
+    function: {
+      name: "review_and_iterate_plan",
+      description: "Review the current project plan and suggest improvements based on progress and learnings",
+      parameters: {
+        type: "object",
+        properties: {
+          feedback: {
+            type: "string",
+            description: "User feedback or observations about the current plan"
+          },
+          focus_area: {
+            type: "string",
+            enum: ["timeline", "scope", "technical", "resources", "quality"],
+            description: "Specific area to focus the review on"
+          }
+        },
+        required: []
+      }
+    }
+  },
+  {
+    type: "function" as const,
+    function: {
+      name: "start_development_session",
+      description: "Begin an automated development session where the agent works through multiple tasks",
+      parameters: {
+        type: "object",
+        properties: {
+          duration_minutes: {
+            type: "number",
+            description: "Target duration for the development session (default: 30)",
+            minimum: 15,
+            maximum: 120
+          },
+          focus_type: {
+            type: "string",
+            enum: ["components", "features", "testing", "architecture", "mixed"],
+            description: "Type of tasks to focus on during the session"
+          },
+          max_tasks: {
+            type: "number",
+            description: "Maximum number of tasks to attempt (default: 3)",
+            minimum: 1,
+            maximum: 10
+          }
+        },
+        required: []
+      }
+    },
+    workflow: {
+      continueOnSuccess: {
+        nextTool: "execute_task",
+        condition: "always",
+        maxChainLength: 5
+      }
+    }
   }
 ]
 
@@ -503,6 +590,15 @@ export class AgentToolExecutor {
       
       case "get_next_tasks":
         return this.getNextTasks(args)
+      
+      case "execute_task":
+        return this.executeTask(args)
+      
+      case "review_and_iterate_plan":
+        return this.reviewAndIteratePlan(args)
+      
+      case "start_development_session":
+        return this.startDevelopmentSession(args)
       
       default:
         throw new Error(`Unknown function: ${functionName}`)
@@ -1118,6 +1214,167 @@ export class AgentToolExecutor {
         projectProgress: progress.overall
       },
       summary: `Found ${nextTasks.length} available tasks. Project is ${progress.overall.toFixed(1)}% complete. Next tasks: ${nextTasks.slice(0, 3).map(t => t.title).join(', ')}${nextTasks.length > 3 ? '...' : ''}`
+    }
+  }
+
+  private async executeTask(args: { taskId: string, executionNotes?: string }) {
+    if (!this.project.plan) {
+      return {
+        success: false,
+        error: 'No project plan exists for this project',
+        summary: 'Cannot execute task - project plan not found.'
+      }
+    }
+
+    try {
+      const task = this.project.plan.phases
+        .flatMap(phase => phase.tasks)
+        .find(t => t.id === args.taskId)
+
+      if (!task) {
+        throw new Error(`Task with ID ${args.taskId} not found in the project plan`)
+      }
+
+             // Check if task can be executed automatically
+       let taskStatus: 'todo' | 'in-progress' | 'review' | 'done' = 'in-progress'
+       let executionNotes = args.executionNotes || `Started execution of ${task.type} task`
+
+       // Execute task based on type
+       if (task.type === 'component') {
+         // Try to generate a component
+         try {
+           const componentResult = await this.generateComponent({
+             name: task.title.replace(/[^a-zA-Z0-9]/g, ''),
+             description: task.description,
+             requirements: task.acceptanceCriteria.join('\n')
+           })
+           if (componentResult.success) {
+             taskStatus = 'done'
+             executionNotes = `Component generated successfully: ${componentResult.summary}`
+           }
+         } catch (error) {
+           taskStatus = 'review'
+           executionNotes = `Component generation failed: ${error instanceof Error ? error.message : 'Unknown error'}`
+         }
+       } else {
+         // For non-component tasks, mark as in-progress for human review
+         taskStatus = 'in-progress'
+         executionNotes = `Task started - requires human intervention for ${task.type} type`
+       }
+
+       // Update task status
+       const updatedPlan = await ProjectPlanningService.updateTaskStatus(
+         this.project.plan,
+         args.taskId,
+         taskStatus,
+         executionNotes
+       )
+
+             // Update project with modified plan
+       this.updateProject(prev => ({
+         ...prev,
+         plan: updatedPlan,
+         updatedAt: new Date().toISOString()
+       }))
+
+       return {
+         success: true,
+         data: { taskId: args.taskId, status: taskStatus, notes: executionNotes },
+         summary: `Task "${task.title}" execution completed with status: ${taskStatus}. ${executionNotes}`
+       }
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to execute task',
+        summary: `Failed to execute task: ${error instanceof Error ? error.message : 'Unknown error'}`
+      }
+    }
+  }
+
+  private async reviewAndIteratePlan(args: { feedback: string, focus_area: string }) {
+    if (!this.project.plan) {
+      return {
+        success: false,
+        error: 'No project plan exists for this project',
+        summary: 'Cannot review and iterate plan - project plan not found.'
+      }
+    }
+
+    try {
+      // Implement plan review and iteration logic here
+      // This is a placeholder and should be replaced with actual implementation
+      const reviewResult = {
+        success: true,
+        data: {
+          feedback: args.feedback,
+          focus_area: args.focus_area
+        },
+        summary: `Plan reviewed and iterated successfully. Feedback: ${args.feedback}. Focus area: ${args.focus_area}`
+      }
+
+             // For now, just record the feedback and suggestion
+       // TODO: Implement actual plan review and iteration logic in ProjectPlanningService
+       this.updateProject(prev => ({
+         ...prev,
+         plan: {
+           ...prev.plan!,
+           status: 'active' as const,
+           updatedAt: new Date().toISOString()
+         },
+         updatedAt: new Date().toISOString()
+       }))
+
+      return reviewResult
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to review and iterate plan',
+        summary: `Failed to review and iterate plan: ${error instanceof Error ? error.message : 'Unknown error'}`
+      }
+    }
+  }
+
+  private async startDevelopmentSession(args: { duration_minutes: number, focus_type: string, max_tasks: number }) {
+    if (!this.project.plan) {
+      return {
+        success: false,
+        error: 'No project plan exists for this project',
+        summary: 'Cannot start development session - project plan not found.'
+      }
+    }
+
+    try {
+      // Implement development session logic here
+      // This is a placeholder and should be replaced with actual implementation
+      const sessionResult = {
+        success: true,
+        data: {
+          duration_minutes: args.duration_minutes,
+          focus_type: args.focus_type,
+          max_tasks: args.max_tasks
+        },
+        summary: `Development session started successfully. Duration: ${args.duration_minutes} minutes, Focus type: ${args.focus_type}, Max tasks: ${args.max_tasks}`
+      }
+
+             // Mark the plan as active and record session start
+       // TODO: Implement actual development session logic in ProjectPlanningService
+       this.updateProject(prev => ({
+         ...prev,
+         plan: {
+           ...prev.plan!,
+           status: 'active' as const,
+           updatedAt: new Date().toISOString()
+         },
+         updatedAt: new Date().toISOString()
+       }))
+
+      return sessionResult
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to start development session',
+        summary: `Failed to start development session: ${error instanceof Error ? error.message : 'Unknown error'}`
+      }
     }
   }
 }

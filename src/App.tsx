@@ -8,6 +8,7 @@ import { ImageAssetManager } from './components/ImageAssetManager'
 import { AgentSidebarWrapper } from './components/AgentSidebar'
 import { ProjectPlanView } from './components/ProjectPlanView'
 import { ProjectPlanWizard } from './components/ProjectPlanWizard'
+import { PlanExecutionCTA } from './components/PlanExecutionCTA'
 import { ModeToggle } from './components/mode-toggle'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './components/ui/tabs'
 import { useProjectManager } from './hooks/useProjectManager'
@@ -194,6 +195,26 @@ function App() {
                         onClose={() => {}}
                       />
                     </div>
+                    
+                    {/* Primary CTA after plan generation */}
+                    <PlanExecutionCTA
+                      plan={currentProject.plan}
+                      progress={ProjectPlanningService.getProjectProgress(currentProject.plan)}
+                      nextTasks={ProjectPlanningService.getNextTasks(currentProject.plan, 5)}
+                      onStartDevelopmentSession={() => {
+                        // TODO: Implement agent development session trigger
+                        console.log('Starting development session...')
+                      }}
+                      onExecuteNextTask={() => {
+                        // TODO: Implement single task execution
+                        console.log('Executing next task...')
+                      }}
+                      onReviewPlan={() => {
+                        // TODO: Implement plan review and iteration
+                        console.log('Reviewing plan...')
+                      }}
+                    />
+                    
                     <ProjectPlanView
                       plan={currentProject.plan}
                       progress={ProjectPlanningService.getProjectProgress(currentProject.plan)}
