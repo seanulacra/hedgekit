@@ -4,6 +4,7 @@
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.8-blue)](https://www.typescriptlang.org/)
 [![React](https://img.shields.io/badge/React-19.1-61dafb)](https://reactjs.org/)
 [![Vite](https://img.shields.io/badge/Vite-6.3-646cff)](https://vitejs.dev/)
+<img width="1724" alt="HedgeKit" src="https://github.com/user-attachments/assets/d1b43d2c-6c4f-498b-ad82-ac0090286d34" />
 
 **Collaborative Agents for More Precise UI Generation**
 
