@@ -3,6 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Code, Copy } from 'lucide-react'
+import { CodeEditor } from '@/components/ui/CodeEditor'
 import type { ProjectSchema, ComponentSchema } from '@/types/schema'
 
 interface ProjectSchemaViewerProps {
@@ -48,9 +49,13 @@ export function ProjectSchemaViewer({ schema }: ProjectSchemaViewerProps) {
             <Copy className="h-3 w-3" />
           </Button>
         </div>
-        <pre className="text-xs bg-gray-50 dark:bg-gray-100 dark:text-gray-800 border rounded p-3 overflow-x-auto max-h-96 overflow-y-auto font-mono">
-          <code className="language-tsx">{code}</code>
-        </pre>
+        <CodeEditor
+          code={code}
+          language="tsx"
+          theme="dark"
+          readOnly={true}
+          className="max-h-96"
+        />
       </div>
     )
   }
