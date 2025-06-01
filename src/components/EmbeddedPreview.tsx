@@ -200,7 +200,12 @@ export function EmbeddedPreview({ project, focusComponent, className }: Embedded
       if (selectedComponent.name === 'CharacterCard') {
         const ComponentToRender = sampleComponents.CharacterCard
         return (
-          <div className="bg-gray-50 rounded-lg p-8 min-h-64 flex items-center justify-center">
+          <div 
+            className="bg-gray-50 rounded-lg p-8 min-h-64 flex items-center justify-center"
+            data-component-id={selectedComponent.id}
+            data-preview="true"
+            id="preview-container"
+          >
             <ComponentToRender />
           </div>
         )
@@ -296,7 +301,12 @@ export function EmbeddedPreview({ project, focusComponent, className }: Embedded
         
         if (DynamicComponent) {
           return (
-            <div className="bg-gray-50 rounded-lg p-8 min-h-64 flex items-center justify-center">
+            <div 
+              className="bg-gray-50 rounded-lg p-8 min-h-64 flex items-center justify-center"
+              data-component-id={selectedComponent.id}
+              data-preview="true"
+              id="preview-container"
+            >
               <DynamicComponent />
             </div>
           )

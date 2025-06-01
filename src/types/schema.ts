@@ -113,6 +113,17 @@ export interface ProjectSchema {
   activeSceneId?: string // Currently active scene for live view
   dependencies: Record<string, string>
   plan?: ProjectPlan // Comprehensive project plan
+  screenshots?: {
+    id: string
+    componentId?: string
+    timestamp: string
+    cdnUrl?: string
+    analysis?: {
+      hasContent: boolean
+      quality: 'high' | 'medium' | 'low'
+      dimensions: { width: number; height: number; aspectRatio: number }
+    }
+  }[]
   createdAt: string
   updatedAt: string
 }

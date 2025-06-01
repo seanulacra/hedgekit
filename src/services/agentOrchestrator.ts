@@ -316,6 +316,18 @@ export class AgentOrchestrator {
               artifactId: data.component.id,
               aspectsToReview: ['code quality', 'project fit', 'theme alignment', 'reusability']
             }
+          } else if (lastTool.function === 'capture_preview_screenshot' && data.componentId) {
+            // From screenshot to reflection
+            return {
+              artifactType: 'component',
+              artifactId: data.componentId,
+              aspectsToReview: ['visual design', 'aesthetics', 'user experience', 'theme consistency'],
+              screenshotData: {
+                quality: data.quality,
+                dimensions: data.dimensions,
+                suggestions: data.suggestions
+              }
+            }
           } else if (lastTool.function === 'generate_image_asset' && data.assetId) {
             return {
               artifactType: 'image',
@@ -333,6 +345,19 @@ export class AgentOrchestrator {
               artifactType: 'task',
               artifactId: data.taskId,
               aspectsToReview: ['completion quality', 'acceptance criteria', 'integration']
+            }
+          }
+        }
+        break
+      
+      case 'capture_preview_screenshot':
+        // Capture screenshot of the just-created component
+        if (lastTool?.function === 'generate_component' && lastTool?.result?.success) {
+          const data = lastTool.result.data
+          if (data?.component?.id) {
+            return {
+              componentId: data.component.id,
+              captureMode: 'component'
             }
           }
         }

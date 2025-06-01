@@ -65,9 +65,9 @@ export const agentTools: EnhancedTool[] = [
     },
     workflow: {
       continueOnSuccess: {
-        nextTool: "reflect_on_artifact",
+        nextTool: "capture_preview_screenshot",
         condition: "always",
-        maxChainLength: 2
+        maxChainLength: 3
       }
     }
   },
@@ -533,6 +533,13 @@ export const agentTools: EnhancedTool[] = [
           }
         },
         required: []
+      }
+    },
+    workflow: {
+      continueOnSuccess: {
+        nextTool: "reflect_on_artifact",
+        condition: "always",
+        maxChainLength: 1
       }
     }
   }
@@ -1616,39 +1623,65 @@ export class AgentToolExecutor {
   }
 
   private async capturePreviewScreenshot(args: { componentId?: string, captureMode?: string }) {
-    if (!this.project.plan) {
-      return {
-        success: false,
-        error: 'No project plan exists for this project',
-        summary: 'Cannot capture preview screenshot - project plan not found.'
-      }
-    }
-
     try {
-      // Implement screenshot capture logic here
-      // This is a placeholder and should be replaced with actual implementation
-      const screenshotResult = {
-        success: true,
-        data: {
-          screenshotUrl: 'https://example.com/screenshot.png',
-          componentId: args.componentId,
-          captureMode: args.captureMode
-        },
-        summary: `Preview screenshot captured successfully. URL: https://example.com/screenshot.png`
+      // Import screenshot service
+      const { ScreenshotService } = await import('./screenshotService')
+      
+      // Capture the screenshot
+      const screenshot = await ScreenshotService.capturePreview({
+        componentId: args.componentId,
+        captureMode: args.captureMode as 'full' | 'component' | 'viewport' || 'viewport'
+      })
+      
+      // Analyze the screenshot for quality
+      const analysis = await ScreenshotService.analyzeScreenshot(screenshot)
+      
+      // Try to upload to CDN if available
+      let cdnUrl: string | undefined
+      if (BunnyCDNService.isConfigured()) {
+        const bunnycdn = new BunnyCDNService()
+        const uploadResult = await ScreenshotService.captureAndUploadToCDN(screenshot, bunnycdn)
+        if (uploadResult.success && uploadResult.cdnUrl) {
+          cdnUrl = uploadResult.cdnUrl
+        }
       }
-
-      // Update project with screenshot result
+      
+      // Store screenshot reference in project
       this.updateProject(prev => ({
         ...prev,
-        plan: {
-          ...prev.plan!,
-          status: 'active' as const,
-          updatedAt: new Date().toISOString()
-        },
+        screenshots: [
+          ...(prev.screenshots || []),
+          {
+            id: screenshot.id,
+            componentId: screenshot.componentId,
+            timestamp: screenshot.timestamp,
+            cdnUrl,
+            analysis: {
+              hasContent: analysis.hasContent,
+              quality: analysis.quality,
+              dimensions: analysis.dimensions
+            }
+          }
+        ],
         updatedAt: new Date().toISOString()
       }))
 
-      return screenshotResult
+      return {
+        success: true,
+        data: {
+          screenshotId: screenshot.id,
+          componentId: screenshot.componentId,
+          captureMode: screenshot.captureMode,
+          dimensions: `${screenshot.width}x${screenshot.height}`,
+          quality: analysis.quality,
+          cdnUrl,
+          hasContent: analysis.hasContent,
+          suggestions: analysis.suggestions
+        },
+        summary: `Captured ${screenshot.captureMode} screenshot (${screenshot.width}x${screenshot.height}, ${analysis.quality} quality).${
+          cdnUrl ? ` Uploaded to CDN: ${cdnUrl}` : ' Stored locally.'
+        }${analysis.suggestions ? ` Suggestions: ${analysis.suggestions.join('; ')}` : ''}`
+      }
     } catch (error) {
       return {
         success: false,
