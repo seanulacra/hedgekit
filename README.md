@@ -197,4 +197,6 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ---
 
-Made with ❤️ by the HedgeKit Team 
+Made with ❤️ by the HedgeKit Team during:
+![image](https://github.com/user-attachments/assets/9e9955bd-98af-409b-a21b-b00140489905)
+
