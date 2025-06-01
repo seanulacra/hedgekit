@@ -53,12 +53,8 @@ interface WizardData extends Omit<ProjectPlanRequest, 'projectName' | 'projectDe
 }
 
 const STEP_TITLES = [
-  'Requirements Gathering',
-  'Project Overview',
-  'Target Users', 
-  'Core Features',
-  'Technical Preferences',
-  'Confirmation',
+  'Project Overview & Requirements',
+  'Features & Goals',
   'Review & Generate'
 ]
 
@@ -166,21 +162,14 @@ export function ProjectPlanWizard({ project, onPlanGenerated, onClose, trigger }
 
   const canProceed = () => {
     switch (currentStep) {
-      case 0: // Requirements Gathering
-        return wizardData.requirements.businessGoals.trim() && 
-               wizardData.requirements.targetAudience.trim() &&
-               wizardData.requirements.keyProblems.trim()
-      case 1: // Project Overview
-        return wizardData.projectName.trim() && wizardData.projectDescription.trim()
-      case 2: // Target Users
-        return wizardData.targetUsers.length > 0
-      case 3: // Core Features
-        return wizardData.coreFeatures.length > 0
-      case 4: // Technical Preferences
-        return true // All have defaults
-      case 5: // Confirmation
-        return true
-      case 6: // Review
+      case 0: // Project Overview & Requirements
+        return wizardData.projectName.trim() && 
+               wizardData.projectDescription.trim() &&
+               wizardData.requirements.businessGoals.trim()
+      case 1: // Features & Goals
+        return wizardData.targetUsers.length > 0 && 
+               wizardData.coreFeatures.length > 0
+      case 2: // Review
         return true
       default:
         return false
@@ -210,13 +199,36 @@ export function ProjectPlanWizard({ project, onPlanGenerated, onClose, trigger }
 
   const renderStep = () => {
     switch (currentStep) {
-      case 0: // Requirements Gathering
+      case 0: // Project Overview & Requirements
         return (
           <div className="space-y-4">
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
               <p className="text-sm text-blue-800">
-                Let's understand what components and assets you want to build. Focus on UI elements and visual design goals.
+                Let's understand what you want to build. Be concise but clear about your goals.
               </p>
+            </div>
+            
+            <div>
+              <Label htmlFor="projectName">Project Name</Label>
+              <Input
+                id="projectName"
+                value={wizardData.projectName}
+                onChange={(e) => setWizardData(prev => ({ ...prev, projectName: e.target.value }))}
+                placeholder="My Awesome Project"
+                className="mt-1"
+              />
+            </div>
+            
+            <div>
+              <Label htmlFor="projectDescription">Project Description</Label>
+              <Textarea
+                id="projectDescription"
+                value={wizardData.projectDescription}
+                onChange={(e) => setWizardData(prev => ({ ...prev, projectDescription: e.target.value }))}
+                placeholder="Describe what your project does and its main purpose..."
+                rows={3}
+                className="mt-1"
+              />
             </div>
             
             <div>
@@ -228,111 +240,21 @@ export function ProjectPlanWizard({ project, onPlanGenerated, onClose, trigger }
                   ...prev, 
                   requirements: { ...prev.requirements, businessGoals: e.target.value }
                 }))}
-                placeholder="What kind of interface do you want to create? What visual style or aesthetic are you aiming for?"
+                placeholder="What kind of interface do you want to create? What's the visual style?"
                 rows={3}
-                className="mt-1"
-              />
-            </div>
-            
-            <div>
-              <Label htmlFor="targetAudience">UI Users & Context</Label>
-              <Textarea
-                id="targetAudience"
-                value={wizardData.requirements.targetAudience}
-                onChange={(e) => setWizardData(prev => ({ 
-                  ...prev, 
-                  requirements: { ...prev.requirements, targetAudience: e.target.value }
-                }))}
-                placeholder="Who will interact with these components? What's the usage context? (e.g., mobile app, web dashboard, game UI)"
-                rows={3}
-                className="mt-1"
-              />
-            </div>
-            
-            <div>
-              <Label htmlFor="keyProblems">UI Challenges to Address</Label>
-              <Textarea
-                id="keyProblems"
-                value={wizardData.requirements.keyProblems}
-                onChange={(e) => setWizardData(prev => ({ 
-                  ...prev, 
-                  requirements: { ...prev.requirements, keyProblems: e.target.value }
-                }))}
-                placeholder="What UI/UX problems need solving? Any specific design patterns or interactions you need?"
-                rows={3}
-                className="mt-1"
-              />
-            </div>
-            
-            <div>
-              <Label htmlFor="successMetrics">Design Success Criteria (Optional)</Label>
-              <Textarea
-                id="successMetrics"
-                value={wizardData.requirements.successMetrics}
-                onChange={(e) => setWizardData(prev => ({ 
-                  ...prev, 
-                  requirements: { ...prev.requirements, successMetrics: e.target.value }
-                }))}
-                placeholder="How will you measure design success? (e.g., usability, visual appeal, component reusability)"
-                rows={2}
-                className="mt-1"
-              />
-            </div>
-            
-            <div>
-              <Label htmlFor="constraints">Design Constraints (Optional)</Label>
-              <Textarea
-                id="constraints"
-                value={wizardData.requirements.constraints}
-                onChange={(e) => setWizardData(prev => ({ 
-                  ...prev, 
-                  requirements: { ...prev.requirements, constraints: e.target.value }
-                }))}
-                placeholder="Any design system requirements, accessibility needs, or visual constraints?"
-                rows={2}
                 className="mt-1"
               />
             </div>
           </div>
         )
         
-      case 1: // Project Overview
+      case 1: // Features & Goals
         return (
-          <div className="space-y-4">
+          <div className="space-y-6">
             <div>
-              <Label htmlFor="projectName">Project Name</Label>
-              <Input
-                id="projectName"
-                value={wizardData.projectName}
-                onChange={(e) => setWizardData(prev => ({ ...prev, projectName: e.target.value }))}
-                placeholder="My Awesome Project"
-                className="mt-1"
-              />
-            </div>
-            <div>
-              <Label htmlFor="projectDescription">Project Description</Label>
-              <Textarea
-                id="projectDescription"
-                value={wizardData.projectDescription}
-                onChange={(e) => setWizardData(prev => ({ ...prev, projectDescription: e.target.value }))}
-                placeholder="Describe what your project does, its main purpose, and key goals..."
-                rows={4}
-                className="mt-1"
-              />
-              <p className="text-xs text-gray-500 mt-1">
-                Be detailed - this helps generate better technical recommendations
-              </p>
-            </div>
-          </div>
-        )
-
-      case 2: // Target Users
-        return (
-          <div className="space-y-4">
-            <div>
-              <Label>Who will use this project?</Label>
+              <Label>Target Users</Label>
               <p className="text-sm text-gray-600 mb-3">
-                Identify the main user types or personas. This helps determine features and complexity.
+                Who will use this? (Add at least one)
               </p>
               
               {/* Current users */}
@@ -362,32 +284,24 @@ export function ProjectPlanWizard({ project, onPlanGenerated, onClose, trigger }
               </div>
 
               {/* Quick add suggestions */}
-              <div>
-                <p className="text-xs text-gray-500 mb-2">Quick add:</p>
-                <div className="flex flex-wrap gap-1">
-                  {EXAMPLE_USERS.filter(user => !wizardData.targetUsers.includes(user)).slice(0, 6).map((user) => (
-                    <Badge 
-                      key={user} 
-                      variant="outline" 
-                      className="cursor-pointer text-xs"
-                      onClick={() => addUser(user)}
-                    >
-                      + {user}
-                    </Badge>
-                  ))}
-                </div>
+              <div className="flex flex-wrap gap-1">
+                {EXAMPLE_USERS.filter(user => !wizardData.targetUsers.includes(user)).slice(0, 6).map((user) => (
+                  <Badge 
+                    key={user} 
+                    variant="outline" 
+                    className="cursor-pointer text-xs"
+                    onClick={() => addUser(user)}
+                  >
+                    + {user}
+                  </Badge>
+                ))}
               </div>
             </div>
-          </div>
-        )
 
-      case 3: // Core Features
-        return (
-          <div className="space-y-4">
             <div>
-              <Label>What are the core features?</Label>
+              <Label>Core Features</Label>
               <p className="text-sm text-gray-600 mb-3">
-                List the main features your project needs. Focus on core functionality first.
+                What are the main features? (Add at least one)
               </p>
               
               {/* Current features */}
@@ -417,205 +331,39 @@ export function ProjectPlanWizard({ project, onPlanGenerated, onClose, trigger }
               </div>
 
               {/* Quick add suggestions */}
-              <div>
-                <p className="text-xs text-gray-500 mb-2">Common features:</p>
-                <div className="flex flex-wrap gap-1">
-                  {EXAMPLE_FEATURES.filter(feature => !wizardData.coreFeatures.includes(feature)).slice(0, 8).map((feature) => (
-                    <Badge 
-                      key={feature} 
-                      variant="outline" 
-                      className="cursor-pointer text-xs"
-                      onClick={() => addFeature(feature)}
-                    >
-                      + {feature}
-                    </Badge>
-                  ))}
-                </div>
+              <div className="flex flex-wrap gap-1">
+                {EXAMPLE_FEATURES.filter(feature => !wizardData.coreFeatures.includes(feature)).slice(0, 8).map((feature) => (
+                  <Badge 
+                    key={feature} 
+                    variant="outline" 
+                    className="cursor-pointer text-xs"
+                    onClick={() => addFeature(feature)}
+                  >
+                    + {feature}
+                  </Badge>
+                ))}
               </div>
             </div>
           </div>
         )
 
-      case 4: // Technical Preferences
+      case 2: // Review & Generate
         return (
-          <div className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="space-y-4">
+            <div className="bg-gray-50 rounded-lg p-4 space-y-3">
               <div>
-                <Label htmlFor="framework">Frontend Framework</Label>
-                <Select 
-                  value={wizardData.preferences.framework} 
-                  onValueChange={(value: any) => setWizardData(prev => ({
-                    ...prev,
-                    preferences: { ...prev.preferences, framework: value }
-                  }))}
-                >
-                  <SelectTrigger className="mt-1">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="react">React</SelectItem>
-                    <SelectItem value="vue">Vue.js</SelectItem>
-                    <SelectItem value="svelte">Svelte</SelectItem>
-                  </SelectContent>
-                </Select>
+                <h4 className="font-medium text-sm">Project: {wizardData.projectName}</h4>
+                <p className="text-xs text-gray-600 mt-1">{wizardData.projectDescription}</p>
               </div>
 
               <div>
-                <Label htmlFor="styling">Styling Approach</Label>
-                <Select 
-                  value={wizardData.preferences.styling} 
-                  onValueChange={(value: any) => setWizardData(prev => ({
-                    ...prev,
-                    preferences: { ...prev.preferences, styling: value }
-                  }))}
-                >
-                  <SelectTrigger className="mt-1">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="tailwind">Tailwind CSS</SelectItem>
-                    <SelectItem value="styled-components">Styled Components</SelectItem>
-                    <SelectItem value="emotion">Emotion</SelectItem>
-                  </SelectContent>
-                </Select>
+                <h4 className="font-medium text-sm">Goals</h4>
+                <p className="text-xs text-gray-600 mt-1">{wizardData.requirements.businessGoals}</p>
               </div>
 
               <div>
-                <Label htmlFor="complexity">Project Complexity</Label>
-                <Select 
-                  value={wizardData.preferences.complexity} 
-                  onValueChange={(value: any) => setWizardData(prev => ({
-                    ...prev,
-                    preferences: { ...prev.preferences, complexity: value }
-                  }))}
-                >
-                  <SelectTrigger className="mt-1">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="simple">Simple - Basic features, minimal complexity</SelectItem>
-                    <SelectItem value="moderate">Moderate - Standard features, some integrations</SelectItem>
-                    <SelectItem value="complex">Complex - Advanced features, multiple integrations</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div>
-                <Label htmlFor="timeline">Development Timeline</Label>
-                <Select 
-                  value={wizardData.preferences.timeline} 
-                  onValueChange={(value: any) => setWizardData(prev => ({
-                    ...prev,
-                    preferences: { ...prev.preferences, timeline: value }
-                  }))}
-                >
-                  <SelectTrigger className="mt-1">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="quick">Quick - Fast iteration, MVP focus</SelectItem>
-                    <SelectItem value="standard">Standard - Balanced development pace</SelectItem>
-                    <SelectItem value="thorough">Thorough - Comprehensive planning, robust features</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-          </div>
-        )
-
-      case 5: // Confirmation
-        return (
-          <div className="space-y-6">
-            <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
-              <div className="flex items-start gap-2">
-                <AlertTriangle className="h-5 w-5 text-amber-600 mt-0.5" />
-                <div>
-                  <h4 className="font-medium text-amber-900 mb-2">Confirm AI Plan Generation</h4>
-                  <p className="text-sm text-amber-800 mb-3">
-                    Once you proceed, the AI will generate a component and asset creation plan. This will include:
-                  </p>
-                  <ul className="text-sm text-amber-700 space-y-1 ml-4">
-                    <li>• Component creation phases and priorities</li>
-                    <li>• Asset generation tasks (images, icons, etc.)</li>
-                    <li>• UI component hierarchy and relationships</li>
-                    <li>• Design system recommendations</li>
-                    <li>• Visual milestones and design goals</li>
-                  </ul>
-                </div>
-              </div>
-            </div>
-
-            <div className="space-y-3">
-              <h4 className="font-medium">The AI will analyze:</h4>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
-                <div className="bg-gray-50 rounded-lg p-3">
-                  <p className="font-medium text-gray-700 mb-1">Requirements</p>
-                  <p className="text-gray-600 text-xs">
-                    {wizardData.requirements.businessGoals.substring(0, 100)}...
-                  </p>
-                </div>
-                <div className="bg-gray-50 rounded-lg p-3">
-                  <p className="font-medium text-gray-700 mb-1">Target Users</p>
-                  <p className="text-gray-600 text-xs">
-                    {wizardData.targetUsers.length} user types defined
-                  </p>
-                </div>
-                <div className="bg-gray-50 rounded-lg p-3">
-                  <p className="font-medium text-gray-700 mb-1">Features</p>
-                  <p className="text-gray-600 text-xs">
-                    {wizardData.coreFeatures.length} core features specified
-                  </p>
-                </div>
-                <div className="bg-gray-50 rounded-lg p-3">
-                  <p className="font-medium text-gray-700 mb-1">Technical Stack</p>
-                  <p className="text-gray-600 text-xs">
-                    {wizardData.preferences.framework} + {wizardData.preferences.styling}
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-green-50 border border-green-200 rounded-lg p-3">
-              <div className="flex items-center gap-2">
-                <CheckCircle className="h-4 w-4 text-green-600" />
-                <p className="text-sm text-green-800">
-                  Ready to generate your project plan. Click "Continue to Review" to see a final summary before generation.
-                </p>
-              </div>
-            </div>
-          </div>
-        )
-
-      case 6: // Review & Generate
-        return (
-          <div className="space-y-6">
-            <div className="bg-gray-50 rounded-lg p-4 space-y-4">
-              <div>
-                <h4 className="font-medium flex items-center gap-2 text-sm">
-                  <AlertTriangle className="h-4 w-4" />
-                  Design Requirements
-                </h4>
-                <div className="text-xs text-gray-600 mt-1 space-y-1">
-                  <p><span className="font-medium">UI Goals:</span> {wizardData.requirements.businessGoals}</p>
-                  <p><span className="font-medium">UI Challenges:</span> {wizardData.requirements.keyProblems}</p>
-                  {wizardData.requirements.constraints && (
-                    <p><span className="font-medium">Constraints:</span> {wizardData.requirements.constraints}</p>
-                  )}
-                </div>
-              </div>
-
-              <div>
-                <h4 className="font-medium flex items-center gap-2">
-                  <Target className="h-4 w-4" />
-                  Project Overview
-                </h4>
-                <p className="text-sm text-gray-600 mt-1">{wizardData.projectName}</p>
-                <p className="text-xs text-gray-500 mt-1">{wizardData.projectDescription}</p>
-              </div>
-
-              <div>
-                <h4 className="font-medium flex items-center gap-2">
-                  <Users className="h-4 w-4" />
+                <h4 className="font-medium text-sm flex items-center gap-2">
+                  <Users className="h-3 w-3" />
                   Target Users ({wizardData.targetUsers.length})
                 </h4>
                 <div className="flex flex-wrap gap-1 mt-1">
@@ -626,27 +374,14 @@ export function ProjectPlanWizard({ project, onPlanGenerated, onClose, trigger }
               </div>
 
               <div>
-                <h4 className="font-medium flex items-center gap-2">
-                  <Lightbulb className="h-4 w-4" />
+                <h4 className="font-medium text-sm flex items-center gap-2">
+                  <Lightbulb className="h-3 w-3" />
                   Core Features ({wizardData.coreFeatures.length})
                 </h4>
                 <div className="flex flex-wrap gap-1 mt-1">
                   {wizardData.coreFeatures.map((feature) => (
                     <Badge key={feature} variant="outline" className="text-xs">{feature}</Badge>
                   ))}
-                </div>
-              </div>
-
-              <div>
-                <h4 className="font-medium flex items-center gap-2">
-                  <Settings className="h-4 w-4" />
-                  Technical Preferences
-                </h4>
-                <div className="grid grid-cols-2 gap-2 mt-1 text-xs text-gray-600">
-                  <div>Framework: {wizardData.preferences.framework}</div>
-                  <div>Styling: {wizardData.preferences.styling}</div>
-                  <div>Complexity: {wizardData.preferences.complexity}</div>
-                  <div>Timeline: {wizardData.preferences.timeline}</div>
                 </div>
               </div>
             </div>
@@ -660,11 +395,10 @@ export function ProjectPlanWizard({ project, onPlanGenerated, onClose, trigger }
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
               <div className="flex items-center gap-2 mb-2">
                 <Sparkles className="h-4 w-4 text-blue-600" />
-                <span className="text-sm font-medium text-blue-900">AI Plan Generation</span>
+                <span className="text-sm font-medium text-blue-900">Ready to Generate</span>
               </div>
               <p className="text-xs text-blue-700">
-                Claude will analyze your requirements and generate a focused component and asset creation plan 
-                with UI development phases, design tasks, and visual milestones.
+                Claude will create a development plan with phases, tasks, and milestones based on your requirements.
               </p>
             </div>
           </div>
@@ -726,7 +460,7 @@ export function ProjectPlanWizard({ project, onPlanGenerated, onClose, trigger }
                 disabled={!canProceed()}
                 className="flex items-center gap-2"
               >
-                {currentStep === 5 ? 'Continue to Review' : 'Next'}
+                Next
                 <ArrowRight className="h-4 w-4" />
               </Button>
             ) : (
@@ -743,7 +477,7 @@ export function ProjectPlanWizard({ project, onPlanGenerated, onClose, trigger }
                 ) : (
                   <>
                     <Sparkles className="h-4 w-4" />
-                    Generate Comprehensive Plan
+                    Generate Plan
                   </>
                 )}
               </Button>

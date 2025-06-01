@@ -190,11 +190,10 @@ export function PlanExecutionCTA({
             <div className="flex items-start gap-2">
               <Zap className="h-4 w-4 text-green-600 mt-0.5" />
               <div className="text-xs">
-                <p className="font-medium text-green-900 mb-1">🎯 Plan Analysis Complete</p>
+                <p className="font-medium text-green-900 mb-1">🎯 Plan Ready!</p>
                 <p className="text-green-800">
-                  Generated {plan.phases.length} phases, {plan.milestones.length} milestones, 
-                  and {plan.phases.reduce((total, phase) => total + phase.tasks.length, 0)} actionable tasks. 
-                  The agent can start working immediately on {nextTasks.length} available tasks.
+                  Generated {plan.phases.length} phases with {plan.phases.reduce((total, phase) => total + phase.tasks.length, 0)} actionable tasks. 
+                  The agent can start working immediately.
                 </p>
               </div>
             </div>

@@ -37,18 +37,18 @@ export class ProjectPlanningService {
   static async generateProjectPlan(request: ProjectPlanRequest): Promise<ProjectPlan> {
     const anthropic = this.getAnthropic()
 
-    const systemPrompt = `You are an expert software architect and project manager. Your task is to create comprehensive, detailed project plans for web applications. 
+    const systemPrompt = `You are an expert software architect and project manager. Your task is to create focused, actionable project plans for web applications. 
 
-You should analyze the project requirements and create a thorough plan that includes:
+You should analyze the project requirements and create a streamlined plan that includes:
 1. Technical architecture and stack recommendations
-2. Phase-by-phase development approach with realistic timelines
+2. 3-4 key development phases (no more) with realistic timelines
 3. Component architecture and design system specifications
-4. Milestone planning with clear success criteria
+4. 2-3 major milestones (no more) with clear success criteria
 5. Task breakdown with dependencies and priorities
 
-Be specific, practical, and consider real-world development challenges. Plan for maintainability, scalability, and user experience from the start.`
+Be concise and practical. Focus on the essential phases and milestones rather than overly detailed planning. Keep the plan achievable and not overwhelming.`
 
-    const userPrompt = `Create a comprehensive project plan for the following project:
+    const userPrompt = `Create a focused and streamlined project plan for the following project:
 
 **Project Details:**
 - Name: ${request.projectName}
@@ -183,7 +183,7 @@ Please provide a detailed JSON response following this exact structure:
   }
 }
 
-Make the plan realistic, detailed, and production-ready. Include proper task dependencies, realistic time estimates, and comprehensive component architecture.`
+Make the plan realistic and achievable. Keep it focused with 3-4 phases maximum and 2-3 major milestones. Include proper task dependencies and realistic time estimates, but avoid overwhelming detail.`
 
     try {
       const response = await anthropic.messages.create({
