@@ -23,6 +23,7 @@
   "license": "MIT",
   "dependencies": {
     "@ai-sdk/vercel": "^0.0.1",
+    "@anthropic-ai/sdk": "^0.52.0",
     "@radix-ui/react-avatar": "^1.1.10",
     "@radix-ui/react-collapsible": "^1.1.11",
     "@radix-ui/react-dialog": "^1.1.14",

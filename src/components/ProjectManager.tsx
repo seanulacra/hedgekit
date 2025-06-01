@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -55,12 +55,7 @@ export function ProjectManager({
 
   return (
     <Card className="border-none shadow-none">
-      <CardHeader className="text-center pb-8">
-        <CardTitle className="text-2xl">Welcome to HedgeKit</CardTitle>
-        <CardDescription className="text-lg">
-          Choose a project to start building with collaborative agents
-        </CardDescription>
-      </CardHeader>
+ 
       <CardContent>
         <div className="flex items-center justify-between mb-6">
           <h3 className="text-lg font-semibold">Your Projects</h3>

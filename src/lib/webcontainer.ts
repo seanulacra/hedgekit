@@ -353,16 +353,37 @@ export function cn(...inputs: ClassValue[]) {
   }
 
   private generateAppComponent(schema: ProjectSchema): string {
-    const imports = schema.components
-      .filter(c => c.source === 'local')
+    // Separate components with actual generated code vs simple placeholders
+    const componentsWithCode = schema.components.filter(c => c.generatedCode && c.generatedCode.trim().length > 0)
+    const simpleComponents = schema.components.filter(c => c.source === 'local' && (!c.generatedCode || c.generatedCode.trim().length === 0))
+    
+    // Imports for simple components
+    const imports = simpleComponents
       .map(c => `import ${c.name} from '@/components/${c.name}'`)
       .join('\n')
 
+    // Inline components with code
+    const inlineComponents = componentsWithCode
+      .map(c => {
+        // Extract the component function from the code if it exists
+        if (c.generatedCode && c.generatedCode.includes('function ' + c.name)) {
+          return c.generatedCode
+        }
+        // Otherwise create a wrapper
+        return `function ${c.name}() {
+  ${c.generatedCode || 'return <div>Component placeholder</div>'}
+}`
+      })
+      .join('\n\n')
+
+    // Usage of all components
     const componentUsage = schema.components
       .map(c => `        <${c.name} />`)
       .join('\n')
 
     return `${imports}
+
+${inlineComponents}
 
 export default function Home() {
   return (
