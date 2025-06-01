@@ -7,11 +7,12 @@ import { ImageGenerator } from './components/ImageGenerator'
 import { ImageAssetManager } from './components/ImageAssetManager'
 import { AgentSidebarWrapper } from './components/AgentSidebar'
 import { ProjectPlanView } from './components/ProjectPlanView'
+import { ProjectPlanWizard } from './components/ProjectPlanWizard'
 import { ModeToggle } from './components/mode-toggle'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './components/ui/tabs'
 import { useProjectManager } from './hooks/useProjectManager'
 import { ProjectPlanningService } from './services/projectPlanningService'
-import type { ComponentSchema, ImageAsset } from './types/schema'
+import type { ComponentSchema, ImageAsset, ProjectPlan } from './types/schema'
 import type { UIActions } from './services/agentTools'
 
 function App() {
@@ -178,35 +179,62 @@ function App() {
             <TabsContent value="plan" className="flex-1 mt-4">
               <div className="h-full overflow-auto">
                 {currentProject.plan ? (
-                  <ProjectPlanView
-                    plan={currentProject.plan}
-                    progress={ProjectPlanningService.getProjectProgress(currentProject.plan)}
-                    nextTasks={ProjectPlanningService.getNextTasks(currentProject.plan, 5)}
-                    onUpdateTaskStatus={(taskId, status, notes) => {
-                      if (currentProject.plan) {
-                        ProjectPlanningService.updateTaskStatus(currentProject.plan, taskId, status, notes)
-                          .then(updatedPlan => {
-                            updateCurrentProject(prev => ({
-                              ...prev,
-                              plan: updatedPlan,
-                              updatedAt: new Date().toISOString()
-                            }))
-                          })
-                          .catch(error => {
-                            console.error('Failed to update task status:', error)
-                          })
-                      }
-                    }}
-                  />
+                  <div className="space-y-4">
+                    <div className="flex justify-between items-center mb-4">
+                      <h2 className="text-2xl font-bold">Project Plan</h2>
+                      <ProjectPlanWizard
+                        project={currentProject}
+                        onPlanGenerated={(plan: ProjectPlan) => {
+                          updateCurrentProject(prev => ({
+                            ...prev,
+                            plan,
+                            updatedAt: new Date().toISOString()
+                          }))
+                        }}
+                        onClose={() => {}}
+                      />
+                    </div>
+                    <ProjectPlanView
+                      plan={currentProject.plan}
+                      progress={ProjectPlanningService.getProjectProgress(currentProject.plan)}
+                      nextTasks={ProjectPlanningService.getNextTasks(currentProject.plan, 5)}
+                      onUpdateTaskStatus={(taskId, status, notes) => {
+                        if (currentProject.plan) {
+                          ProjectPlanningService.updateTaskStatus(currentProject.plan, taskId, status, notes)
+                            .then(updatedPlan => {
+                              updateCurrentProject(prev => ({
+                                ...prev,
+                                plan: updatedPlan,
+                                updatedAt: new Date().toISOString()
+                              }))
+                            })
+                            .catch(error => {
+                              console.error('Failed to update task status:', error)
+                            })
+                        }
+                      }}
+                    />
+                  </div>
                 ) : (
                   <div className="flex flex-col items-center justify-center h-64 text-gray-500">
                     <div className="text-6xl mb-4">📋</div>
                     <h3 className="text-lg font-medium mb-2">No Project Plan</h3>
-                    <p className="text-sm text-center max-w-md">
+                    <p className="text-sm text-center max-w-md mb-4">
                       Generate a comprehensive project plan using AI to break down your project into manageable phases, tasks, and milestones.
                     </p>
+                    <ProjectPlanWizard
+                      project={currentProject}
+                      onPlanGenerated={(plan: ProjectPlan) => {
+                        updateCurrentProject(prev => ({
+                          ...prev,
+                          plan,
+                          updatedAt: new Date().toISOString()
+                        }))
+                      }}
+                      onClose={() => {}}
+                    />
                     <p className="text-xs text-center mt-2 text-gray-400">
-                      Ask the agent to "generate a project plan" to get started.
+                      Or ask the agent to "generate a project plan"
                     </p>
                   </div>
                 )}

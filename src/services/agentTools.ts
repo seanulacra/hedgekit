@@ -734,7 +734,7 @@ export class AgentToolExecutor {
         has_assets: (this.project.assets?.length || 0) > 0,
         framework: this.project.framework,
         last_updated: this.project.updatedAt,
-        sample_components: ['SampleButton', 'SampleCard', 'SampleForm', 'CharacterCard']
+        sample_components: ['CharacterCard']
       },
       summary: `Embedded preview is ready with ${this.project.components.length} components. Supports live rendering of sample components.`
     }

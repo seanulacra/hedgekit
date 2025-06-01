@@ -1,8 +1,16 @@
+import Anthropic from '@anthropic-ai/sdk'
 import type { ProjectPlan, ProjectSchema, TechnicalStack, ProjectPhase, Milestone, DesignSystemSpec, ComponentArchitecture } from '../types/schema'
 
 export interface ProjectPlanRequest {
   projectName: string
   projectDescription: string
+  requirements?: {
+    businessGoals: string
+    targetAudience: string
+    keyProblems: string
+    successMetrics?: string
+    constraints?: string
+  }
   targetUsers: string[]
   coreFeatures: string[]
   preferences?: {
@@ -14,12 +22,20 @@ export interface ProjectPlanRequest {
 }
 
 export class ProjectPlanningService {
-  private static readonly ANTHROPIC_API_KEY = import.meta.env.VITE_ANTHROPIC_API_KEY
-  
-  static async generateProjectPlan(request: ProjectPlanRequest): Promise<ProjectPlan> {
-    if (!this.ANTHROPIC_API_KEY) {
+  private static getAnthropic(): Anthropic {
+    const apiKey = import.meta.env.VITE_ANTHROPIC_API_KEY
+    if (!apiKey) {
       throw new Error('Anthropic API key not configured')
     }
+    
+    return new Anthropic({
+      apiKey,
+      dangerouslyAllowBrowser: true
+    })
+  }
+  
+  static async generateProjectPlan(request: ProjectPlanRequest): Promise<ProjectPlan> {
+    const anthropic = this.getAnthropic()
 
     const systemPrompt = `You are an expert software architect and project manager. Your task is to create comprehensive, detailed project plans for web applications. 
 
@@ -39,6 +55,14 @@ Be specific, practical, and consider real-world development challenges. Plan for
 - Description: ${request.projectDescription}
 - Target Users: ${request.targetUsers.join(', ')}
 - Core Features: ${request.coreFeatures.join(', ')}
+
+${request.requirements ? `**Requirements Analysis:**
+- Business Goals: ${request.requirements.businessGoals}
+- Target Audience: ${request.requirements.targetAudience}
+- Key Problems: ${request.requirements.keyProblems}
+${request.requirements.successMetrics ? `- Success Metrics: ${request.requirements.successMetrics}` : ''}
+${request.requirements.constraints ? `- Constraints: ${request.requirements.constraints}` : ''}
+` : ''}
 
 **Preferences:**
 ${request.preferences ? Object.entries(request.preferences).map(([key, value]) => `- ${key}: ${value}`).join('\n') : 'No specific preferences'}
@@ -162,34 +186,32 @@ Please provide a detailed JSON response following this exact structure:
 Make the plan realistic, detailed, and production-ready. Include proper task dependencies, realistic time estimates, and comprehensive component architecture.`
 
     try {
-      const response = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-api-key': this.ANTHROPIC_API_KEY,
-          'anthropic-version': '2023-06-01'
-        },
-        body: JSON.stringify({
-          model: 'claude-3-5-sonnet-20241022',
-          max_tokens: 4000,
-          temperature: 0.3,
-          system: systemPrompt,
-          messages: [
-            {
-              role: 'user',
-              content: userPrompt
-            }
-          ]
-        })
+      const response = await anthropic.messages.create({
+        model: 'claude-3-5-sonnet-20241022',
+        max_tokens: 4000,
+        temperature: 0.3,
+        system: systemPrompt,
+        messages: [
+          {
+            role: 'user',
+            content: userPrompt
+          }
+        ]
       })
 
-      if (!response.ok) {
-        const errorData = await response.text()
-        throw new Error(`Anthropic API error: ${response.status} ${errorData}`)
+      // Extract text content from response
+      let textContent = ''
+      for (const block of response.content) {
+        if (block.type === 'text') {
+          textContent += block.text
+        }
+      }
+      
+      if (!textContent) {
+        throw new Error('No text content received from Anthropic')
       }
 
-      const data = await response.json()
-      const planData = JSON.parse(data.content[0].text)
+      const planData = JSON.parse(textContent)
 
       // Generate IDs and timestamps for the plan
       const projectPlan: ProjectPlan = {

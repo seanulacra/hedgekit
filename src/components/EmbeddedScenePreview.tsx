@@ -14,71 +14,7 @@ interface EmbeddedScenePreviewProps {
 export function EmbeddedScenePreview({ project, scene, className }: EmbeddedScenePreviewProps) {
   const [showCode, setShowCode] = useState(false)
 
-  // Sample components that we can actually render
-  const SampleButton = ({ text = "Click me", variant = "primary" }) => {
-    const baseClasses = "px-4 py-2 rounded-lg font-medium transition-colors text-sm"
-    const variantClasses = {
-      primary: "bg-blue-600 text-white hover:bg-blue-700",
-      secondary: "bg-gray-600 text-white hover:bg-gray-700",
-      success: "bg-green-600 text-white hover:bg-green-700"
-    }
-    
-    return (
-      <button className={`${baseClasses} ${variantClasses[variant] || variantClasses.primary}`}>
-        {text}
-      </button>
-    )
-  }
-
-  const SampleCard = ({ title = "Sample Card", content = "This is a sample card component.", icon = "📦" }) => {
-    return (
-      <div className="max-w-xs bg-white rounded-lg shadow-lg border border-gray-200 p-4">
-        <div className="flex items-center mb-3">
-          <span className="text-lg mr-2">{icon}</span>
-          <h3 className="text-lg font-semibold text-gray-800">{title}</h3>
-        </div>
-        <p className="text-gray-600 text-sm">{content}</p>
-        <div className="mt-3 flex gap-2">
-          <SampleButton text="Action" variant="primary" />
-          <SampleButton text="Cancel" variant="secondary" />
-        </div>
-      </div>
-    )
-  }
-
-  const SampleForm = () => {
-    const [name, setName] = useState("")
-    const [email, setEmail] = useState("")
-    
-    return (
-      <div className="max-w-sm bg-white rounded-lg shadow-lg border border-gray-200 p-4">
-        <h3 className="text-lg font-semibold text-gray-800 mb-3">Contact Form</h3>
-        <div className="space-y-3">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
-            <input
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
-              placeholder="Enter your name"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
-              placeholder="Enter your email"
-            />
-          </div>
-          <SampleButton text="Submit" variant="success" />
-        </div>
-      </div>
-    )
-  }
+  // Battle card component for demonstration
 
   const CharacterCard = ({ 
     character = {
@@ -188,9 +124,6 @@ export function EmbeddedScenePreview({ project, scene, className }: EmbeddedScen
 
   // Map of embeddable components
   const embeddableComponents = {
-    SampleButton,
-    SampleCard,
-    SampleForm,
     CharacterCard
   }
 
@@ -200,7 +133,7 @@ export function EmbeddedScenePreview({ project, scene, className }: EmbeddedScen
     if (!component) return null
 
     // Check if we have an embeddable version of this component
-    const EmbeddableComponent = embeddableComponents[component.name]
+    const EmbeddableComponent = component.name === 'CharacterCard' ? embeddableComponents.CharacterCard : null
     
     if (EmbeddableComponent) {
       // Render the actual live component

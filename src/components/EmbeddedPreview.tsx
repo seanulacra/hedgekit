@@ -48,71 +48,7 @@ export function EmbeddedPreview({ project, focusComponent, className }: Embedded
     }
   }
 
-  // Sample components that actually work (embedded)
-  const SampleButton = ({ text = "Click me", variant = "primary" }) => {
-    const baseClasses = "px-4 py-2 rounded-lg font-medium transition-colors"
-    const variantClasses = {
-      primary: "bg-blue-600 text-white hover:bg-blue-700",
-      secondary: "bg-gray-600 text-white hover:bg-gray-700",
-      success: "bg-green-600 text-white hover:bg-green-700"
-    }
-    
-    return (
-      <button className={`${baseClasses} ${variantClasses[variant] || variantClasses.primary}`}>
-        {text}
-      </button>
-    )
-  }
-
-  const SampleCard = ({ title = "Sample Card", content = "This is a sample card component.", icon = "📦" }) => {
-    return (
-      <div className="max-w-sm bg-white rounded-lg shadow-lg border border-gray-200 p-6">
-        <div className="flex items-center mb-4">
-          <span className="text-2xl mr-3">{icon}</span>
-          <h3 className="text-xl font-semibold text-gray-800">{title}</h3>
-        </div>
-        <p className="text-gray-600">{content}</p>
-        <div className="mt-4 flex gap-2">
-          <SampleButton text="Action" variant="primary" />
-          <SampleButton text="Cancel" variant="secondary" />
-        </div>
-      </div>
-    )
-  }
-
-  const SampleForm = () => {
-    const [name, setName] = useState("")
-    const [email, setEmail] = useState("")
-    
-    return (
-      <div className="max-w-md bg-white rounded-lg shadow-lg border border-gray-200 p-6">
-        <h3 className="text-xl font-semibold text-gray-800 mb-4">Contact Form</h3>
-        <div className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
-            <input
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="Enter your name"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="Enter your email"
-            />
-          </div>
-          <SampleButton text="Submit" variant="success" />
-        </div>
-      </div>
-    )
-  }
+  // Battle card component for demonstration
 
   // Character Card component
   const CharacterCard = ({ 
@@ -223,9 +159,6 @@ export function EmbeddedPreview({ project, focusComponent, className }: Embedded
 
   // Map of working sample components
   const sampleComponents = {
-    SampleButton,
-    SampleCard,
-    SampleForm,
     CharacterCard
   }
 
@@ -241,21 +174,9 @@ export function EmbeddedPreview({ project, focusComponent, className }: Embedded
               <p className="text-sm">Here are some sample components:</p>
             </div>
             
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="flex justify-center">
               <div className="p-4 border rounded-lg">
-                <h4 className="font-medium mb-2">SampleButton</h4>
-                <SampleButton />
-              </div>
-              <div className="p-4 border rounded-lg">
-                <h4 className="font-medium mb-2">SampleCard</h4>
-                <SampleCard />
-              </div>
-              <div className="p-4 border rounded-lg">
-                <h4 className="font-medium mb-2">SampleForm</h4>
-                <SampleForm />
-              </div>
-              <div className="p-4 border rounded-lg">
-                <h4 className="font-medium mb-2">CharacterCard</h4>
+                <h4 className="font-medium mb-2 text-center">CharacterCard (Battle Card)</h4>
                 <CharacterCard />
               </div>
             </div>
@@ -276,8 +197,8 @@ export function EmbeddedPreview({ project, focusComponent, className }: Embedded
     // Try to render component dynamically
     try {
       // First check if it's one of our sample components
-      if (sampleComponents[selectedComponent.name]) {
-        const ComponentToRender = sampleComponents[selectedComponent.name]
+      if (selectedComponent.name === 'CharacterCard') {
+        const ComponentToRender = sampleComponents.CharacterCard
         return (
           <div className="bg-gray-50 rounded-lg p-8 min-h-64 flex items-center justify-center">
             <ComponentToRender />
