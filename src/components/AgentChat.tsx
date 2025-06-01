@@ -112,16 +112,49 @@ export function AgentChat({ project, onUpdateProject, uiActions }: AgentChatProp
         uiActions
       )
 
-      const agentResponse: Message = {
-        id: (Date.now() + 1).toString(),
-        role: 'agent',
-        content: response.message,
-        timestamp: new Date(),
-        provider: response.provider,
-        toolCalls: response.toolCalls
+      // Create separate messages for tool calls and final response for better UX
+      const newMessages: Message[] = []
+      
+      // Add tool call messages first
+      if (response.toolCalls && response.toolCalls.length > 0) {
+        response.toolCalls.forEach((toolCall, index) => {
+          const toolMessage: Message = {
+            id: `${Date.now()}_tool_${index}`,
+            role: 'agent',
+            content: toolCall.result.summary || `Executed ${toolCall.function}`,
+            timestamp: new Date(),
+            provider: response.provider,
+            toolCalls: [toolCall] // Show individual tool call
+          }
+          newMessages.push(toolMessage)
+        })
+      }
+      
+      // Add final agent response if there's additional content beyond tool summaries
+      if (response.message && response.message.trim()) {
+        const agentResponse: Message = {
+          id: (Date.now() + 1).toString(),
+          role: 'agent',
+          content: response.message,
+          timestamp: new Date(),
+          provider: response.provider
+        }
+        newMessages.push(agentResponse)
       }
 
-      setMessages(prev => [...prev, agentResponse])
+      // If no messages were created, add a basic response
+      if (newMessages.length === 0) {
+        const agentResponse: Message = {
+          id: (Date.now() + 1).toString(),
+          role: 'agent',
+          content: response.message || 'Task completed.',
+          timestamp: new Date(),
+          provider: response.provider
+        }
+        newMessages.push(agentResponse)
+      }
+
+      setMessages(prev => [...prev, ...newMessages])
     } catch (error) {
       console.error('Agent chat error:', error)
       const errorMessage: Message = {
@@ -283,10 +316,11 @@ export function AgentChat({ project, onUpdateProject, uiActions }: AgentChatProp
       {!orchestrator.isAnyProviderAvailable() && (
         <div className="text-sm text-muted-foreground text-center p-3 bg-muted/50 rounded-lg">
           <div className="font-medium mb-2">No AI providers available</div>
-          <div className="text-xs space-y-1">
-            <div>• Set VITE_OPEN_AI_KEY for OpenAI GPT-4</div>
-            <div>• Set VITE_ANTHROPIC_API_KEY for Claude Sonnet 4 & Opus 4</div>
-          </div>
+                      <div className="text-xs space-y-1">
+              <div>• Set VITE_OPEN_AI_KEY for OpenAI GPT-4</div>
+              <div>• Set VITE_ANTHROPIC_API_KEY for Claude Sonnet 4 & Opus 4</div>
+              <div>• Set VITE_BUNNYCDN_* vars for BunnyCDN image storage</div>
+            </div>
         </div>
       )}
     </div>

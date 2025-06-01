@@ -62,14 +62,25 @@ export class OpenAIAgentProvider implements IAgentProvider {
         }
       ]
 
-      // Call OpenAI with tool definitions
-      const completion = await this.openai.chat.completions.create({
+      // Handle workflow continuation forcing specific tool
+      let apiRequest: any = {
         model: 'gpt-4',
         messages,
         tools: agentTools,
         tool_choice: 'auto',
         temperature: 0.7
-      })
+      }
+
+      // If this is a workflow continuation, force the specific tool
+      if (request.context?.workflowContinuation && request.context?.forceTool) {
+        const tool = agentTools.find(t => t.function.name === request.context.forceTool)
+        if (tool) {
+          apiRequest.tool_choice = { type: "function", function: { name: tool.function.name } }
+        }
+      }
+
+      // Call OpenAI with tool definitions
+      const completion = await this.openai.chat.completions.create(apiRequest)
 
       const assistantMessage = completion.choices[0].message
       const toolCalls = assistantMessage.tool_calls || []
@@ -78,22 +89,41 @@ export class OpenAIAgentProvider implements IAgentProvider {
       const toolResults = []
       for (const toolCall of toolCalls) {
         try {
+          // Use continuation args if this is a workflow continuation
+          let args = JSON.parse(toolCall.function.arguments)
+          if (request.context?.workflowContinuation && 
+              request.context?.continuationArgs && 
+              toolCall.function.name === request.context?.forceTool) {
+            args = request.context.continuationArgs
+          }
+          
           const result = await toolExecutor.executeFunction(
             toolCall.function.name,
-            JSON.parse(toolCall.function.arguments)
+            args
           )
           
           toolResults.push({
             id: toolCall.id,
             function: toolCall.function.name,
-            args: JSON.parse(toolCall.function.arguments),
+            args: args,
             result
           })
         } catch (error) {
+          // Use continuation args if this is a workflow continuation
+          let args = {}
+          try {
+            args = JSON.parse(toolCall.function.arguments)
+            if (request.context?.workflowContinuation && 
+                request.context?.continuationArgs && 
+                toolCall.function.name === request.context?.forceTool) {
+              args = request.context.continuationArgs
+            }
+          } catch {}
+          
           toolResults.push({
             id: toolCall.id,
             function: toolCall.function.name,
-            args: JSON.parse(toolCall.function.arguments),
+            args: args,
             result: {
               success: false,
               error: error instanceof Error ? error.message : 'Tool execution failed'
@@ -161,18 +191,30 @@ CURRENT PROJECT CONTEXT:
 YOUR CAPABILITIES:
 You have access to the same tools that users can access manually:
 1. analyze_project_state - Examine current project structure and components
-2. generate_component - Create new React components using OpenAI or v0
+2. generate_component - Create new React components using V0
 3. generate_image_asset - Create images/icons using gpt-image-1 
 4. edit_image_asset - Modify existing images with AI
 5. get_embedded_preview - Check the embedded preview status and sample components
 
+POWERFUL IMAGE → COMPONENT WORKFLOW:
+You can create components with custom hosted images seamlessly:
+1. generate_image_asset('custom icon') → returns assetId
+2. upload_image_to_cdn(assetId, 'icon.png', 'description') → CDN URL
+3. generate_component('component with image: {url}') → self-contained component
+
+AUTONOMOUS WORKFLOW EXECUTION:
+You are authorized to execute complete multi-step workflows without asking permission.
+Action budget: 5 sequential tool calls per request.
+For "create component with custom artwork" → auto-execute: generate_image_asset → upload_image_to_cdn → generate_component
+
 BEHAVIORAL GUIDELINES:
 - ONLY use tools when the user wants to BUILD, CREATE, or MODIFY something
 - If user says "create", "build", "add", "generate", "make" → use tools
+- Complete entire workflows autonomously - explain each step as you go
 - If user says "what", "how", "why", "explain" → just respond conversationally
 - Always analyze the project state first if you need context about existing components
 - Be proactive: if user wants to "improve the UI", suggest specific actions AND execute them
-- Prefer v0 for complex components, OpenAI for simple ones
+- All components are generated using V0 for high-quality results
 - When generating images, use descriptive prompts and appropriate settings
 - Explain what you're doing and why
 - If something fails, try alternative approaches

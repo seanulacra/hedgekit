@@ -235,8 +235,26 @@ Please respond with a JSON object containing:
   }
 
   private extractJsonFromResponse(content: string): string {
-    const jsonMatch = content.match(/\{[\s\S]*\}/)
-    return jsonMatch ? jsonMatch[0] : content
+    // Remove markdown code blocks if present
+    let cleanContent = content.replace(/```json\s*/g, '').replace(/```\s*$/g, '')
+    
+    // Try to find JSON object
+    const jsonMatch = cleanContent.match(/\{[\s\S]*\}/)
+    if (jsonMatch) {
+      return jsonMatch[0]
+    }
+    
+    // If no JSON found, wrap as minimal valid response
+    return `{
+      "componentSchema": {
+        "name": "GeneratedComponent",
+        "type": "component",
+        "framework": "react",
+        "props": {},
+        "source": "custom"
+      },
+      "code": "export default function GeneratedComponent() { return <div>Component generation failed</div> }"
+    }`
   }
 
   private generateComponentId(): string {
@@ -265,6 +283,10 @@ Please respond with a JSON object containing:
   }
 
   private extractComponentName(prompt: string): string {
+    if (!prompt || typeof prompt !== 'string') {
+      return 'GeneratedComponent'
+    }
+    
     const words = prompt.split(' ')
     const meaningfulWords = words.filter(word => 
       word.length > 2 && 

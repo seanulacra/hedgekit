@@ -12,7 +12,8 @@ import {
   DialogTitle, 
   DialogTrigger 
 } from '@/components/ui/dialog'
-import { Loader2, Edit, Wand2 } from 'lucide-react'
+import { Loader2, Edit, Wand2, FileImage } from 'lucide-react'
+import { ImageGenerationService } from '../services/imageGeneration'
 import type { ImageAsset } from '@/types/schema'
 
 interface ImageEditorProps {
@@ -34,8 +35,12 @@ export function ImageEditor({ asset, onImageEdited }: ImageEditorProps) {
 
     setIsEditing(true)
     try {
-      const { ImageGenerationService } = await import('@/services/imageGeneration')
+      // Check if we have base64 data for editing
+      if (!asset.base64) {
+        throw new Error('Cannot edit CDN-hosted images. Original image data not available.')
+      }
       
+      // ImageGenerationService already imported at top
       const response = await ImageGenerationService.editImage(
         asset.base64,
         editPrompt.trim(),
@@ -97,11 +102,20 @@ export function ImageEditor({ asset, onImageEdited }: ImageEditorProps) {
           <div className="space-y-2">
             <Label>Current Image</Label>
             <div className="border rounded-lg p-2">
-              <img
-                src={asset.base64.startsWith('data:') ? asset.base64 : `data:image/${asset.format};base64,${asset.base64}`}
-                alt={asset.name}
-                className="w-full max-h-48 object-contain rounded"
-              />
+              {asset.cdnUrl || asset.base64 ? (
+                <img
+                  src={asset.cdnUrl}
+                  alt={asset.name}
+                  className="w-full max-h-48 object-contain rounded"
+                />
+              ) : (
+                <div className="w-full h-48 bg-muted rounded flex items-center justify-center">
+                  <div className="text-center">
+                    <FileImage className="h-12 w-12 text-muted-foreground mx-auto mb-2" />
+                    <p className="text-muted-foreground text-sm">Image not available</p>
+                  </div>
+                </div>
+              )}
               <p className="text-sm text-muted-foreground mt-2">
                 Original prompt: {asset.prompt}
               </p>

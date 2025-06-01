@@ -6,15 +6,17 @@ import { ProjectManager } from './components/ProjectManager'
 import { ImageGenerator } from './components/ImageGenerator'
 import { ImageAssetManager } from './components/ImageAssetManager'
 import { AgentSidebarWrapper } from './components/AgentSidebar'
+import { ProjectPlanView } from './components/ProjectPlanView'
 import { ModeToggle } from './components/mode-toggle'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './components/ui/tabs'
 import { useProjectManager } from './hooks/useProjectManager'
+import { ProjectPlanningService } from './services/projectPlanningService'
 import type { ComponentSchema, ImageAsset } from './types/schema'
 import type { UIActions } from './services/agentTools'
 
 function App() {
   const [showProjectManager, setShowProjectManager] = useState(false)
-  const [activeTab, setActiveTab] = useState<'build' | 'project' | 'preview'>('build')
+  const [activeTab, setActiveTab] = useState<'build' | 'project' | 'preview' | 'plan'>('build')
   const [expandedComponents, setExpandedComponents] = useState<Set<string>>(new Set())
   const {
     projects,
@@ -61,7 +63,7 @@ function App() {
 
   // UI Actions for agent tools
   const uiActions: UIActions = {
-    switchTab: (tab: 'build' | 'project' | 'preview') => {
+    switchTab: (tab: 'build' | 'project' | 'preview' | 'plan') => {
       setActiveTab(tab)
     },
     showComponentCode: (componentId: string) => {
@@ -119,11 +121,12 @@ function App() {
       >
         <div className="flex flex-1 flex-col gap-4 p-4">
           
-          <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'build' | 'project' | 'preview')} className="flex-1 flex flex-col">
-            <TabsList className="grid w-full grid-cols-3">
+          <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'build' | 'project' | 'preview' | 'plan')} className="flex-1 flex flex-col">
+            <TabsList className="grid w-full grid-cols-4">
               <TabsTrigger value="build">🔨 Build Tools</TabsTrigger>
               <TabsTrigger value="project">📁 Project</TabsTrigger>
               <TabsTrigger value="preview">👁️ Preview</TabsTrigger>
+              <TabsTrigger value="plan">📋 Plan</TabsTrigger>
             </TabsList>
             
             <TabsContent value="build" className="flex-1 mt-4">
@@ -169,6 +172,44 @@ function App() {
                   onUpdateProject={updateCurrentProject}
                   uiActions={uiActions}
                 />
+              </div>
+            </TabsContent>
+            
+            <TabsContent value="plan" className="flex-1 mt-4">
+              <div className="h-full overflow-auto">
+                {currentProject.plan ? (
+                  <ProjectPlanView
+                    plan={currentProject.plan}
+                    progress={ProjectPlanningService.getProjectProgress(currentProject.plan)}
+                    nextTasks={ProjectPlanningService.getNextTasks(currentProject.plan, 5)}
+                    onUpdateTaskStatus={(taskId, status, notes) => {
+                      if (currentProject.plan) {
+                        ProjectPlanningService.updateTaskStatus(currentProject.plan, taskId, status, notes)
+                          .then(updatedPlan => {
+                            updateCurrentProject(prev => ({
+                              ...prev,
+                              plan: updatedPlan,
+                              updatedAt: new Date().toISOString()
+                            }))
+                          })
+                          .catch(error => {
+                            console.error('Failed to update task status:', error)
+                          })
+                      }
+                    }}
+                  />
+                ) : (
+                  <div className="flex flex-col items-center justify-center h-64 text-gray-500">
+                    <div className="text-6xl mb-4">📋</div>
+                    <h3 className="text-lg font-medium mb-2">No Project Plan</h3>
+                    <p className="text-sm text-center max-w-md">
+                      Generate a comprehensive project plan using AI to break down your project into manageable phases, tasks, and milestones.
+                    </p>
+                    <p className="text-xs text-center mt-2 text-gray-400">
+                      Ask the agent to "generate a project plan" to get started.
+                    </p>
+                  </div>
+                )}
               </div>
             </TabsContent>
           </Tabs>

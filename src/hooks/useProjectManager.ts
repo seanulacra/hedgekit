@@ -61,9 +61,27 @@ export function useProjectManager() {
 
   const saveCurrentProject = useCallback((project: ProjectSchema) => {
     try {
+      // Try to save the full project first
       localStorage.setItem(CURRENT_PROJECT_KEY, JSON.stringify(project))
     } catch (error) {
-      console.warn('Failed to save current project:', error)
+      if (error instanceof DOMException && error.code === 22) {
+        // QuotaExceededError - try to save without base64 data as fallback
+        console.warn('Storage quota exceeded, saving project without asset data')
+        try {
+          const lightweightProject = {
+            ...project,
+            assets: project.assets?.map(asset => ({
+              ...asset,
+              base64: `[Base64 data removed due to storage limits - Asset ID: ${asset.id}]`
+            }))
+          }
+          localStorage.setItem(CURRENT_PROJECT_KEY, JSON.stringify(lightweightProject))
+        } catch (fallbackError) {
+          console.warn('Failed to save even lightweight project:', fallbackError)
+        }
+      } else {
+        console.warn('Failed to save current project:', error)
+      }
     }
   }, [])
 

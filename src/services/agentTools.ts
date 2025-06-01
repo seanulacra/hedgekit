@@ -1,9 +1,32 @@
 import { ComponentGenerator } from '../lib/generator'
 import { V0GenerationService } from './v0Generation'
-import type { ProjectSchema, ComponentSchema, ImageAsset } from '../types/schema'
+import { ImageGenerationService } from './imageGeneration'
+import { BunnyCDNService } from './bunnycdnService'
+import { ProjectPlanningService } from './projectPlanningService'
+import type { ProjectSchema, ComponentSchema, ImageAsset, ProjectPlan } from '../types/schema'
 
-// Tool definitions for OpenAI function calling
-export const agentTools = [
+// Tool workflow configuration
+interface ToolWorkflow {
+  continueOnSuccess?: {
+    nextTool: string
+    condition?: 'always' | 'if_component_requested' | 'if_user_intent_complete'
+    maxChainLength?: number
+  }
+}
+
+// Enhanced tool definition with workflow metadata
+interface EnhancedTool {
+  type: "function"
+  function: {
+    name: string
+    description: string
+    parameters: any
+  }
+  workflow?: ToolWorkflow
+}
+
+// Tool definitions for OpenAI function calling with workflow support
+export const agentTools: EnhancedTool[] = [
   {
     type: "function" as const,
     function: {
@@ -20,7 +43,7 @@ export const agentTools = [
     type: "function" as const,
     function: {
       name: "generate_component",
-      description: "Generate a new React component using OpenAI or v0",
+      description: "Generate a new React component using V0",
       parameters: {
         type: "object",
         properties: {
@@ -32,10 +55,9 @@ export const agentTools = [
             type: "string", 
             description: "Description of what the component should do"
           },
-          provider: {
+          requirements: {
             type: "string",
-            enum: ["openai", "v0"],
-            description: "Which AI service to use for generation"
+            description: "Specific requirements or constraints for the component (optional)"
           }
         },
         required: ["name", "description"]
@@ -65,11 +87,18 @@ export const agentTools = [
           },
           size: {
             type: "string",
-            enum: ["256x256", "512x512", "1024x1024", "1792x1024", "1024x1792"],
-            description: "Size of the generated image"
+            enum: ["1024x1024", "1024x1536", "1536x1024", "auto"],
+            description: "Size of the generated image (gpt-image-1 supported sizes)"
           }
         },
         required: ["name", "prompt"]
+      }
+    },
+    workflow: {
+      continueOnSuccess: {
+        nextTool: "generate_component",
+        condition: "if_component_requested",
+        maxChainLength: 2
       }
     }
   },
@@ -110,14 +139,14 @@ export const agentTools = [
     type: "function" as const,
     function: {
       name: "switch_ui_tab",
-      description: "Switch the UI to a specific tab (build, project, or preview)",
+      description: "Switch the UI to a specific tab (build, project, preview, or plan)",
       parameters: {
         type: "object",
         properties: {
           tab: {
             type: "string",
-            enum: ["build", "project", "preview"],
-            description: "The tab to switch to: 'build' for Build Tools, 'project' for Project view, 'preview' for Live Preview"
+            enum: ["build", "project", "preview", "plan"],
+            description: "The tab to switch to: 'build' for Build Tools, 'project' for Project view, 'preview' for Live Preview, 'plan' for Project Plan"
           }
         },
         required: ["tab"]
@@ -250,12 +279,125 @@ export const agentTools = [
         required: ["sceneId", "componentId", "x", "y"]
       }
     }
+  },
+  {
+    type: "function" as const,
+    function: {
+      name: "generate_project_plan",
+      description: "Generate a comprehensive project plan using a larger model for detailed planning",
+      parameters: {
+        type: "object",
+        properties: {
+          projectName: {
+            type: "string",
+            description: "Name of the project to plan"
+          },
+          projectDescription: {
+            type: "string",
+            description: "Detailed description of the project requirements"
+          },
+          targetUsers: {
+            type: "array",
+            items: { type: "string" },
+            description: "Target user types/personas for the project"
+          },
+          coreFeatures: {
+            type: "array",
+            items: { type: "string" },
+            description: "List of core features the project should include"
+          },
+          preferences: {
+            type: "object",
+            properties: {
+              framework: {
+                type: "string",
+                enum: ["react", "vue", "svelte"],
+                description: "Preferred frontend framework"
+              },
+              styling: {
+                type: "string",
+                enum: ["tailwind", "styled-components", "emotion"],
+                description: "Preferred styling approach"
+              },
+              complexity: {
+                type: "string",
+                enum: ["simple", "moderate", "complex"],
+                description: "Project complexity level"
+              },
+              timeline: {
+                type: "string",
+                enum: ["quick", "standard", "thorough"],
+                description: "Development timeline preference"
+              }
+            }
+          }
+        },
+        required: ["projectName", "projectDescription", "targetUsers", "coreFeatures"]
+      }
+    }
+  },
+  {
+    type: "function" as const,
+    function: {
+      name: "get_project_plan",
+      description: "Get the current project plan with phases, tasks, and milestones",
+      parameters: {
+        type: "object",
+        properties: {},
+        required: []
+      }
+    }
+  },
+  {
+    type: "function" as const,
+    function: {
+      name: "update_task_status",
+      description: "Update the status of a specific task in the project plan",
+      parameters: {
+        type: "object",
+        properties: {
+          taskId: {
+            type: "string",
+            description: "ID of the task to update"
+          },
+          status: {
+            type: "string",
+            enum: ["todo", "in-progress", "review", "done"],
+            description: "New status for the task"
+          },
+          notes: {
+            type: "string",
+            description: "Optional notes about the task progress or completion"
+          }
+        },
+        required: ["taskId", "status"]
+      }
+    }
+  },
+  {
+    type: "function" as const,
+    function: {
+      name: "get_next_tasks",
+      description: "Get the next available tasks from the project plan based on dependencies and priorities",
+      parameters: {
+        type: "object",
+        properties: {
+          limit: {
+            type: "number",
+            description: "Maximum number of tasks to return (default: 5)",
+            minimum: 1,
+            maximum: 20
+          }
+        },
+        required: []
+      }
+    }
   }
 ]
 
 // UI action callbacks type
 export interface UIActions {
-  switchTab?: (tab: 'build' | 'project' | 'preview') => void
+  switchTab?: (tab: 'build' | 'project' | 'preview' | 'plan') => void
   showComponentCode?: (componentId: string) => void
   focusPreviewComponent?: (componentId: string) => void
   createScene?: (name: string, description: string) => void
@@ -264,13 +406,61 @@ export interface UIActions {
 
 // Tool execution functions
 export class AgentToolExecutor {
+  private originalUserIntent: string = ''
+  private chainLength: number = 0
+  
   constructor(
     private project: ProjectSchema,
     private updateProject: (updater: (prev: ProjectSchema) => ProjectSchema) => void,
     private uiActions?: UIActions
   ) {}
 
+  setUserIntent(userMessage: string) {
+    this.originalUserIntent = userMessage.toLowerCase()
+    this.chainLength = 0
+  }
+
+  shouldContinueWorkflow(toolName: string, success: boolean): { shouldContinue: boolean, nextTool?: string } {
+    if (!success) return { shouldContinue: false }
+    
+    const tool = agentTools.find(t => t.function.name === toolName)
+    const workflow = tool?.workflow?.continueOnSuccess
+    
+    if (!workflow) return { shouldContinue: false }
+    
+    // Check chain length limit
+    if (this.chainLength >= (workflow.maxChainLength || 5)) {
+      return { shouldContinue: false }
+    }
+    
+    // Check continuation condition
+    const shouldContinue = this.evaluateCondition(workflow.condition || 'always')
+    
+    return {
+      shouldContinue,
+      nextTool: shouldContinue ? workflow.nextTool : undefined
+    }
+  }
+
+  private evaluateCondition(condition: string): boolean {
+    switch (condition) {
+      case 'always':
+        return true
+      case 'if_component_requested':
+        return this.originalUserIntent.includes('component') || 
+               this.originalUserIntent.includes('card') ||
+               this.originalUserIntent.includes('create')
+      case 'if_user_intent_complete':
+        // Add logic to check if user's original intent is satisfied
+        return false
+      default:
+        return false
+    }
+  }
+
   async executeFunction(functionName: string, args: any): Promise<any> {
+    this.chainLength++
+    
     switch (functionName) {
       case "analyze_project_state":
         return this.analyzeProjectState()
@@ -301,6 +491,18 @@ export class AgentToolExecutor {
       
       case "add_component_to_scene":
         return this.addComponentToScene(args)
+      
+      case "generate_project_plan":
+        return this.generateProjectPlan(args)
+      
+      case "get_project_plan":
+        return this.getProjectPlan()
+      
+      case "update_task_status":
+        return this.updateTaskStatus(args)
+      
+      case "get_next_tasks":
+        return this.getNextTasks(args)
       
       default:
         throw new Error(`Unknown function: ${functionName}`)
@@ -337,42 +539,36 @@ export class AgentToolExecutor {
     }
   }
 
-  private async generateComponent(args: { name: string, description: string, provider?: string }) {
+  private async generateComponent(args: { name: string, description: string, requirements?: string }) {
     try {
-      const { name, description, provider = 'openai' } = args
+      const { name, description, requirements } = args
       
-      let component: ComponentSchema
+      // Combine description and requirements for the prompt
+      const fullPrompt = requirements ? `${description}\n\nSpecific requirements: ${requirements}` : description
       
-      if (provider === 'v0' && V0GenerationService.isV0Available()) {
-        const result = await V0GenerationService.generateComponent({
-          prompt: description,
-          projectContext: {
-            framework: this.project.framework,
-            components: this.project.components.map(c => c.name),
-            dependencies: this.project.dependencies || {}
-          }
-        })
-        
-        component = {
-          id: `comp-${Date.now()}`,
-          name: result.componentName || name,
-          type: 'component',
-          framework: 'react',
-          props: {},
-          source: 'custom',
-          generatedCode: result.code,
-          generationMethod: 'v0'
+      // Always use V0 for component generation
+      if (!V0GenerationService.isV0Available()) {
+        throw new Error('V0 service is not available. Please configure your V0 API key.')
+      }
+
+      const result = await V0GenerationService.generateComponent({
+        prompt: fullPrompt,
+        projectContext: {
+          framework: this.project.framework,
+          components: this.project.components.map(c => c.name),
+          dependencies: this.project.dependencies || {}
         }
-      } else {
-        const generator = new ComponentGenerator()
-        generator.setApiKey(import.meta.env.VITE_OPEN_AI_KEY)
-        
-        const result = await generator.generateComponent({
-          prompt: description,
-          projectSchema: this.project
-        })
-        
-        component = result
+      })
+      
+      const component: ComponentSchema = {
+        id: `comp-${Date.now()}`,
+        name: result.componentName || name,
+        type: 'component',
+        framework: 'react',
+        props: {},
+        source: 'custom',
+        generatedCode: result.code,
+        generationMethod: 'v0'
       }
 
       // Update project with new component
@@ -385,7 +581,7 @@ export class AgentToolExecutor {
       return {
         success: true,
         data: { component },
-        summary: `Generated component "${component.name}" using ${provider}. Added to project.`
+        summary: `Generated component "${component.name}" using v0. Added to project.`
       }
     } catch (error) {
       return {
@@ -400,9 +596,6 @@ export class AgentToolExecutor {
     try {
       const { name, prompt, background = 'transparent', size = '1024x1024' } = args
       
-      // Dynamic import to avoid build conflicts
-      const { ImageGenerationService } = await import('./imageGeneration')
-      
       const result = await ImageGenerationService.generateImage({
         prompt,
         model: 'gpt-image-1',
@@ -412,30 +605,54 @@ export class AgentToolExecutor {
         quality: 'high'
       })
 
-      const imageAsset: ImageAsset = {
-        id: `img-${Date.now()}`,
-        name,
-        prompt,
-        base64: result.data[0].b64_json!,
-        format: 'png',
-        size,
-        background: background as any,
-        model: 'gpt-image-1',
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      }
+      const assetId = `img-${Date.now()}`
+      
+      // Upload directly to BunnyCDN, never store base64
+      const uploadResult = await this.uploadImageToBunnyCDN(
+        result.data[0].b64_json!, 
+        `${name}.png`, 
+        `Generated image: ${name}`
+      )
+      
+      if (uploadResult.success) {
+        // Save asset with only the CDN URL
+        const imageAsset: ImageAsset = {
+          id: assetId,
+          name,
+          prompt,
+          cdnUrl: uploadResult.publicUrl,
+          format: 'png',
+          size,
+          background: background as any,
+          model: 'gpt-image-1',
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        }
+        
+        this.updateProject(prev => ({
+          ...prev,
+          assets: [...(prev.assets || []), imageAsset],
+          updatedAt: new Date().toISOString()
+        }))
 
-      // Update project with new asset
-      this.updateProject(prev => ({
-        ...prev,
-        assets: [...(prev.assets || []), imageAsset],
-        updatedAt: new Date().toISOString()
-      }))
-
-      return {
-        success: true,
-        data: { imageAsset },
-        summary: `Generated image "${name}" with prompt "${prompt}". Added to project assets.`
+        return {
+          success: true,
+          data: { 
+            assetId,
+            name,
+            size,
+            format: 'png',
+            cdnUrl: uploadResult.publicUrl
+          },
+          summary: `Generated image "${name}" and uploaded to CDN. Asset ID: ${assetId}. CDN URL: ${uploadResult.publicUrl}`
+        }
+      } else {
+        // CDN upload failed
+        return {
+          success: false,
+          error: uploadResult.error || 'Failed to upload image to CDN',
+          summary: `Generated image "${name}" but failed to upload to CDN: ${uploadResult.error || 'Unknown error'}`
+        }
       }
     } catch (error) {
       return {
@@ -455,11 +672,19 @@ export class AgentToolExecutor {
         throw new Error(`Asset with ID ${assetId} not found`)
       }
 
+      // Check if asset has base64 data
+      if (!asset.base64 && !asset.cdnUrl) {
+        throw new Error(`Asset ${assetId} has no image data available`)
+      }
+
+      // If we only have CDN URL, we can't edit the image directly
+      if (!asset.base64 && asset.cdnUrl) {
+        throw new Error(`Asset ${assetId} is stored in CDN only. Image editing requires base64 data.`)
+      }
+
       // Dynamic import to avoid build conflicts
-      const { ImageGenerationService } = await import('./imageGeneration')
-      
       const result = await ImageGenerationService.editImage(
-        asset.base64,
+        asset.base64!,
         editPrompt,
         {
           background: asset.background,
@@ -718,6 +943,181 @@ export class AgentToolExecutor {
         error: error instanceof Error ? error.message : 'Failed to add component to scene',
         summary: `Failed to add component to scene: ${error instanceof Error ? error.message : 'Unknown error'}`
       }
+    }
+  }
+
+  private async uploadImageToBunnyCDN(
+    base64Data: string, 
+    fileName: string, 
+    description: string
+  ): Promise<{ success: boolean; publicUrl?: string; error?: string }> {
+    try {
+      if (!BunnyCDNService.isConfigured()) {
+        throw new Error('BunnyCDN is not configured. Please set VITE_BUNNYCDN_STORAGE_ZONE_NAME, VITE_BUNNYCDN_STORAGE_ZONE_API_KEY, VITE_BUNNYCDN_PULL_ZONE_HOSTNAME and VITE_BUNNYCDN_STORAGE_ZONE_HOSTNAME environment variables.')
+      }
+
+      const bunnycdn = new BunnyCDNService()
+      
+      const uploadResult = await bunnycdn.uploadImage({
+        base64Data,
+        fileName,
+        description,
+        folder: 'generated',
+        tags: ['ai-generated', 'agent']
+      })
+
+      return uploadResult
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Image upload failed'
+      }
+    }
+  }
+
+  private async generateProjectPlan(args: {
+    projectName: string
+    projectDescription: string
+    targetUsers: string[]
+    coreFeatures: string[]
+    preferences?: {
+      framework?: 'react' | 'vue' | 'svelte'
+      styling?: 'tailwind' | 'styled-components' | 'emotion'
+      complexity?: 'simple' | 'moderate' | 'complex'
+      timeline?: 'quick' | 'standard' | 'thorough'
+    }
+  }) {
+    try {
+      const plan = await ProjectPlanningService.generateProjectPlan(args)
+      
+      // Attach plan to current project
+      plan.projectId = this.project.id
+      
+      // Update project with the new plan
+      this.updateProject(prev => ({
+        ...prev,
+        plan,
+        updatedAt: new Date().toISOString()
+      }))
+
+      return {
+        success: true,
+        data: { plan },
+        summary: `Generated comprehensive project plan for "${args.projectName}" with ${plan.phases.length} phases, ${plan.milestones.length} milestones, and ${plan.phases.reduce((total, phase) => total + phase.tasks.length, 0)} tasks.`
+      }
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to generate project plan',
+        summary: `Failed to generate project plan: ${error instanceof Error ? error.message : 'Unknown error'}`
+      }
+    }
+  }
+
+  private getProjectPlan() {
+    if (!this.project.plan) {
+      return {
+        success: false,
+        error: 'No project plan exists for this project',
+        summary: 'Project plan not found. Generate a plan first using generate_project_plan.'
+      }
+    }
+
+    const progress = ProjectPlanningService.getProjectProgress(this.project.plan)
+    const nextTasks = ProjectPlanningService.getNextTasks(this.project.plan, 3)
+
+    return {
+      success: true,
+      data: {
+        plan: this.project.plan,
+        progress,
+        nextTasks: nextTasks.map(task => ({
+          id: task.id,
+          title: task.title,
+          description: task.description,
+          type: task.type,
+          priority: task.priority,
+          estimatedHours: task.estimatedHours,
+          status: task.status
+        }))
+      },
+      summary: `Project plan: ${progress.overall.toFixed(1)}% complete, ${progress.milestones.completed}/${progress.milestones.total} milestones achieved, ${nextTasks.length} tasks available.`
+    }
+  }
+
+  private async updateTaskStatus(args: { taskId: string, status: 'todo' | 'in-progress' | 'review' | 'done', notes?: string }) {
+    if (!this.project.plan) {
+      return {
+        success: false,
+        error: 'No project plan exists for this project',
+        summary: 'Cannot update task status - project plan not found.'
+      }
+    }
+
+    try {
+      const updatedPlan = await ProjectPlanningService.updateTaskStatus(
+        this.project.plan,
+        args.taskId,
+        args.status,
+        args.notes
+      )
+
+      // Update project with modified plan
+      this.updateProject(prev => ({
+        ...prev,
+        plan: updatedPlan,
+        updatedAt: new Date().toISOString()
+      }))
+
+      // Find the updated task for the summary
+      const task = updatedPlan.phases
+        .flatMap(phase => phase.tasks)
+        .find(t => t.id === args.taskId)
+
+      return {
+        success: true,
+        data: { taskId: args.taskId, newStatus: args.status },
+        summary: `Updated task "${task?.title || args.taskId}" status to ${args.status}${args.notes ? ` with notes: ${args.notes}` : ''}`
+      }
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to update task status',
+        summary: `Failed to update task status: ${error instanceof Error ? error.message : 'Unknown error'}`
+      }
+    }
+  }
+
+  private getNextTasks(args: { limit?: number } = {}) {
+    if (!this.project.plan) {
+      return {
+        success: false,
+        error: 'No project plan exists for this project',
+        summary: 'Cannot get next tasks - project plan not found.'
+      }
+    }
+
+    const limit = args.limit || 5
+    const nextTasks = ProjectPlanningService.getNextTasks(this.project.plan, limit)
+    const progress = ProjectPlanningService.getProjectProgress(this.project.plan)
+
+    return {
+      success: true,
+      data: {
+        tasks: nextTasks.map(task => ({
+          id: task.id,
+          title: task.title,
+          description: task.description,
+          type: task.type,
+          priority: task.priority,
+          estimatedHours: task.estimatedHours,
+          dependencies: task.dependencies,
+          acceptanceCriteria: task.acceptanceCriteria
+        })),
+        totalAvailable: nextTasks.length,
+        projectProgress: progress.overall
+      },
+      summary: `Found ${nextTasks.length} available tasks. Project is ${progress.overall.toFixed(1)}% complete. Next tasks: ${nextTasks.slice(0, 3).map(t => t.title).join(', ')}${nextTasks.length > 3 ? '...' : ''}`
     }
   }
 }

@@ -36,10 +36,30 @@ export function ImageAssetManager({ assets, onAssetUpdate, onAssetDelete, onAsse
   const [editingName, setEditingName] = useState('')
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
 
+  const getImageSrc = (asset: ImageAsset): string | null => {
+    console.log('Getting image src for asset:', asset.id, 'cdnUrl:', asset.cdnUrl, 'has base64:', !!asset.base64)
+    if (asset.cdnUrl) {
+      // Temporary CORS proxy workaround
+      return asset.cdnUrl
+    }
+    if (asset.base64) {
+      return asset.base64.startsWith('data:') ? asset.base64 : `data:image/${asset.format};base64,${asset.base64}`
+    }
+    return null
+  }
+
   const downloadAsset = (asset: ImageAsset) => {
+    const imageSrc = getImageSrc(asset)
+    if (!imageSrc) {
+      console.warn('No image data available for download')
+      return
+    }
+    
+    // Create download link - browser will handle the download
     const link = document.createElement('a')
-    link.href = asset.base64.startsWith('data:') ? asset.base64 : `data:image/${asset.format};base64,${asset.base64}`
+    link.href = imageSrc
     link.download = `${asset.name}.${asset.format}`
+    link.target = '_blank' // Open in new tab if direct download fails
     document.body.appendChild(link)
     link.click()
     document.body.removeChild(link)
@@ -110,7 +130,7 @@ export function ImageAssetManager({ assets, onAssetUpdate, onAssetDelete, onAsse
       </CardHeader>
       <CardContent>
         <div className="grid gap-4">
-          {assets.map((asset) => (
+          {assets.filter(asset => asset && (asset.cdnUrl || asset.base64)).map((asset) => (
             <div key={asset.id} className="border rounded-lg p-4 space-y-3">
               <div className="flex items-start justify-between">
                 <div className="space-y-1">
@@ -132,11 +152,20 @@ export function ImageAssetManager({ assets, onAssetUpdate, onAssetDelete, onAsse
                         <DialogDescription>{asset.prompt}</DialogDescription>
                       </DialogHeader>
                       <div className="flex justify-center">
-                        <img
-                          src={asset.base64.startsWith('data:') ? asset.base64 : `data:image/${asset.format};base64,${asset.base64}`}
-                          alt={asset.name}
-                          className="max-w-full max-h-96 rounded-lg"
-                        />
+                        {getImageSrc(asset) ? (
+                          <img
+                            src={getImageSrc(asset)!}
+                            alt={asset.name}
+                            className="max-w-full max-h-96 rounded-lg"
+                          />
+                        ) : (
+                          <div className="w-full max-h-96 bg-muted rounded-lg flex items-center justify-center p-8">
+                            <div className="text-center">
+                              <FileImage className="h-16 w-16 text-muted-foreground mx-auto mb-2" />
+                              <p className="text-muted-foreground">Image not available</p>
+                            </div>
+                          </div>
+                        )}
                       </div>
                     </DialogContent>
                   </Dialog>
@@ -167,7 +196,7 @@ export function ImageAssetManager({ assets, onAssetUpdate, onAssetDelete, onAsse
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() => copyToClipboard(asset.base64.startsWith('data:') ? asset.base64 : `data:image/${asset.format};base64,${asset.base64}`)}
+                    onClick={() => copyToClipboard(getImageSrc(asset) || 'No image data available')}
                   >
                     <Copy className="h-4 w-4" />
                   </Button>
@@ -193,11 +222,19 @@ export function ImageAssetManager({ assets, onAssetUpdate, onAssetDelete, onAsse
               </div>
 
               <div className="relative group">
-                <img
-                  src={asset.base64.startsWith('data:') ? asset.base64 : `data:image/${asset.format};base64,${asset.base64}`}
-                  alt={asset.name}
-                  className="w-full h-32 object-cover rounded border"
-                />
+                {getImageSrc(asset) ? (
+                  <img
+                    src={getImageSrc(asset)!}
+                    alt={asset.name}
+                    className="w-full h-32 object-cover rounded border"
+                    onLoad={() => console.log('Image loaded successfully:', asset.id)}
+                    onError={(e) => console.log('Image failed to load:', asset.id, e)}
+                  />
+                ) : (
+                  <div className="w-full h-32 bg-muted rounded border flex items-center justify-center">
+                    <FileImage className="h-8 w-8 text-muted-foreground" />
+                  </div>
+                )}
               </div>
             </div>
           ))}

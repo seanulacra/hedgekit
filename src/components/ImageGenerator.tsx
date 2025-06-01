@@ -6,6 +6,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Loader2, Image as ImageIcon } from 'lucide-react'
+import { ImageGenerationService } from '../services/imageGeneration'
 import type { ImageAsset } from '@/types/schema'
 
 interface ImageGeneratorProps {
@@ -26,7 +27,7 @@ export function ImageGenerator({ onImageGenerated }: ImageGeneratorProps) {
 
     setIsGenerating(true)
     try {
-      const { ImageGenerationService } = await import('@/services/imageGeneration')
+      // ImageGenerationService already imported at top
       
       const response = await ImageGenerationService.generateImage({
         prompt: prompt.trim(),
