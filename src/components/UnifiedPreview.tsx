@@ -41,9 +41,11 @@ export function UnifiedPreview({ project, onUpdateProject }: UnifiedPreviewProps
 
   // Handle component changes
   useEffect(() => {
-    project.components.forEach(component => {
-      sceneManager.handleComponentChange(component, 'updated')
-    })
+    if (project.components) {
+      project.components.forEach(component => {
+        sceneManager.handleComponentChange(component, 'updated')
+      })
+    }
   }, [project.components, sceneManager])
 
   const handleComponentSelect = (componentId: string) => {
@@ -79,7 +81,7 @@ export function UnifiedPreview({ project, onUpdateProject }: UnifiedPreviewProps
     sceneManager.addComponentToScene(liveScene.id, componentId, {}, position)
   }
 
-  const availableComponents = project.components
+  const availableComponents = project.components || []
   const selectedComponent = availableComponents.find(c => c.id === selectedComponentId)
 
   const ComponentTestingArea = () => (

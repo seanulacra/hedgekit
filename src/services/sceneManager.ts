@@ -167,14 +167,16 @@ export class SceneManager {
     this.componentLibrary.clear()
     
     // Add all components
-    components.forEach(component => {
-      this.componentLibrary.set(component.id, component)
-    })
+    if (components) {
+      components.forEach(component => {
+        this.componentLibrary.set(component.id, component)
+      })
 
-    // Notify about component changes to trigger scene updates
-    components.forEach(component => {
-      this.notifyComponentChange(component.id, component)
-    })
+      // Notify about component changes to trigger scene updates
+      components.forEach(component => {
+        this.notifyComponentChange(component.id, component)
+      })
+    }
   }
 
   getComponent(componentId: string): ComponentSchema | undefined {
@@ -259,13 +261,15 @@ export class SceneManager {
   // Utility methods for project integration
   loadFromProject(project: ProjectSchema): void {
     // Load component library
-    this.updateComponentLibrary(project.components)
+    this.updateComponentLibrary(project.components || [])
 
     // Load scenes
     this.scenes.clear()
-    project.scenes.forEach(scene => {
-      this.scenes.set(scene.id, scene)
-    })
+    if (project.scenes) {
+      project.scenes.forEach(scene => {
+        this.scenes.set(scene.id, scene)
+      })
+    }
 
     // Set active scene
     this.activeSceneId = project.activeSceneId || null
