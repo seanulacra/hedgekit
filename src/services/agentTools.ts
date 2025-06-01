@@ -105,14 +105,74 @@ export const agentTools = [
         required: []
       }
     }
+  },
+  {
+    type: "function" as const,
+    function: {
+      name: "switch_ui_tab",
+      description: "Switch the UI to a specific tab (build, project, or preview)",
+      parameters: {
+        type: "object",
+        properties: {
+          tab: {
+            type: "string",
+            enum: ["build", "project", "preview"],
+            description: "The tab to switch to: 'build' for Build Tools, 'project' for Project view, 'preview' for Live Preview"
+          }
+        },
+        required: ["tab"]
+      }
+    }
+  },
+  {
+    type: "function" as const,
+    function: {
+      name: "show_component_code",
+      description: "Expand and show the code for a specific component in the Project view",
+      parameters: {
+        type: "object",
+        properties: {
+          componentId: {
+            type: "string",
+            description: "ID of the component to show code for"
+          }
+        },
+        required: ["componentId"]
+      }
+    }
+  },
+  {
+    type: "function" as const,
+    function: {
+      name: "focus_preview_component",
+      description: "Switch to live preview and focus on a specific component",
+      parameters: {
+        type: "object",
+        properties: {
+          componentId: {
+            type: "string",
+            description: "ID of the component to focus in the preview"
+          }
+        },
+        required: ["componentId"]
+      }
+    }
   }
 ]
+
+// UI action callbacks type
+export interface UIActions {
+  switchTab?: (tab: 'build' | 'project' | 'preview') => void
+  showComponentCode?: (componentId: string) => void
+  focusPreviewComponent?: (componentId: string) => void
+}
 
 // Tool execution functions
 export class AgentToolExecutor {
   constructor(
     private project: ProjectSchema,
-    private updateProject: (updater: (prev: ProjectSchema) => ProjectSchema) => void
+    private updateProject: (updater: (prev: ProjectSchema) => ProjectSchema) => void,
+    private uiActions?: UIActions
   ) {}
 
   async executeFunction(functionName: string, args: any): Promise<any> {
@@ -131,6 +191,15 @@ export class AgentToolExecutor {
       
       case "get_webcontainer_preview":
         return this.getWebContainerPreview()
+      
+      case "switch_ui_tab":
+        return this.switchUITab(args)
+      
+      case "show_component_code":
+        return this.showComponentCode(args)
+      
+      case "focus_preview_component":
+        return this.focusPreviewComponent(args)
       
       default:
         throw new Error(`Unknown function: ${functionName}`)
@@ -341,6 +410,81 @@ export class AgentToolExecutor {
         last_build: this.project.updatedAt
       },
       summary: `WebContainer preview is running with ${this.project.components.length} components`
+    }
+  }
+
+  private switchUITab(args: { tab: 'build' | 'project' | 'preview' }) {
+    const { tab } = args
+    
+    if (this.uiActions?.switchTab) {
+      this.uiActions.switchTab(tab)
+      return {
+        success: true,
+        data: { tab },
+        summary: `Switched to ${tab} tab`
+      }
+    }
+    
+    return {
+      success: false,
+      error: 'UI tab switching not available',
+      summary: 'Tab switching is not currently supported'
+    }
+  }
+
+  private showComponentCode(args: { componentId: string }) {
+    const { componentId } = args
+    
+    const component = this.project.components.find(c => c.id === componentId)
+    if (!component) {
+      return {
+        success: false,
+        error: `Component with ID ${componentId} not found`,
+        summary: `Component ${componentId} does not exist`
+      }
+    }
+
+    if (this.uiActions?.showComponentCode) {
+      this.uiActions.showComponentCode(componentId)
+      return {
+        success: true,
+        data: { componentId, componentName: component.name },
+        summary: `Showing code for component "${component.name}"`
+      }
+    }
+    
+    return {
+      success: false,
+      error: 'Component code display not available',
+      summary: 'Component code display is not currently supported'
+    }
+  }
+
+  private focusPreviewComponent(args: { componentId: string }) {
+    const { componentId } = args
+    
+    const component = this.project.components.find(c => c.id === componentId)
+    if (!component) {
+      return {
+        success: false,
+        error: `Component with ID ${componentId} not found`,
+        summary: `Component ${componentId} does not exist`
+      }
+    }
+
+    if (this.uiActions?.focusPreviewComponent) {
+      this.uiActions.focusPreviewComponent(componentId)
+      return {
+        success: true,
+        data: { componentId, componentName: component.name },
+        summary: `Switched to live preview and focused on component "${component.name}"`
+      }
+    }
+    
+    return {
+      success: false,
+      error: 'Preview component focus not available',
+      summary: 'Preview component focus is not currently supported'
     }
   }
 }
