@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import { Button } from './ui/button'
 import { Badge } from './ui/badge'
+import { CodeEditor } from './ui/CodeEditor'
 import { RefreshCw, ExternalLink, Code, Eye, Layers, Move } from 'lucide-react'
 import type { ProjectSchema, Scene, ComponentInstance } from '../types/schema'
 
@@ -333,24 +334,24 @@ export function EmbeddedScenePreview({ project, scene, className }: EmbeddedScen
       </div>
 
       {/* Content */}
-      <div className="flex-1 overflow-auto p-4">
+      <div className="flex-1 overflow-hidden">
         {showCode && scene ? (
-          <div className="h-full">
-            <pre className="bg-gray-900 text-gray-100 rounded-lg p-4 text-sm overflow-auto">
-              {JSON.stringify(scene, null, 2)}
-            </pre>
+          <div className="h-full p-4">
+            <CodeEditor
+              code={JSON.stringify(scene, null, 2)}
+              language="javascript"
+              theme="dark"
+              readOnly={true}
+              className="h-full"
+            />
           </div>
         ) : (
-          <div className="flex items-center justify-center min-h-full">
+          <div className="flex items-center justify-center min-h-full overflow-auto p-4">
             {renderScene()}
           </div>
         )}
       </div>
 
-      {/* Footer Help */}
-      <div className="p-3 border-t bg-muted/20 text-xs text-muted-foreground">
-        💡 Live components: {Object.keys(embeddableComponents).join(', ')}
-      </div>
     </div>
   )
 }

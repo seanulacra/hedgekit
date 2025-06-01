@@ -5,7 +5,8 @@ import { Badge } from './ui/badge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select'
 import { Eye, Play, Square, Layers, Component } from 'lucide-react'
-import { SceneLiveView, useSceneLiveView } from './SceneLiveView'
+import { SceneInstanceManager } from './SceneInstanceManager'
+import { useSceneLiveView } from './SceneLiveView'
 import { SceneCreationModal } from './SceneCreationModal'
 import { EmbeddedPreview } from './EmbeddedPreview'
 import { EmbeddedScenePreview } from './EmbeddedScenePreview'
@@ -23,6 +24,16 @@ export function UnifiedPreview({ project, onUpdateProject, uiActions }: UnifiedP
   const [selectedComponentId, setSelectedComponentId] = useState<string>('')
   const [selectedInstanceId, setSelectedInstanceId] = useState<string>('')
   const [previewMode, setPreviewMode] = useState<'component' | 'scene'>('component')
+  
+  // Auto-select first component when project loads or components change
+  useEffect(() => {
+    if (!selectedComponentId && project.components.length > 0) {
+      setSelectedComponentId(project.components[0].id)
+    } else if (selectedComponentId && !project.components.find(c => c.id === selectedComponentId)) {
+      // If current selection is invalid, select first available
+      setSelectedComponentId(project.components[0]?.id || '')
+    }
+  }, [project.components, selectedComponentId])
   
   const sceneManager = useSceneManager(project)
   const activeScene = sceneManager.getActiveScene()
@@ -126,29 +137,25 @@ export function UnifiedPreview({ project, onUpdateProject, uiActions }: UnifiedP
   )
 
   const SceneCompositionArea = () => (
-    <div className="h-full flex flex-col">
-      <div className="flex items-center justify-between p-2 border-b">
-        <div className="flex items-center gap-2">
-          {liveScene && (
-            <span className="text-xs text-muted-foreground">{liveScene.instances.length} instances</span>
-          )}
-        </div>
-        <SceneCreationModal
-          project={project}
-          onUpdateProject={onUpdateProject}
-          uiActions={uiActions}
-          trigger={
-            <Button size="sm" variant="outline">
-              New Scene
-            </Button>
-          }
-        />
-      </div>
+    <div className="h-full flex flex-col space-y-3 p-3">
+      {/* New Scene Button */}
+      <SceneCreationModal
+        project={project}
+        onUpdateProject={onUpdateProject}
+        uiActions={uiActions}
+        trigger={
+          <Button size="sm" variant="outline" className="w-full">
+            New Scene
+          </Button>
+        }
+      />
       
-      <div className="flex-1">
-        <SceneLiveView
-          scene={liveScene}
+      {/* Scene Instance Manager */}
+      <div className="flex-1 min-h-0">
+        <SceneInstanceManager
+          scene={activeScene}
           componentLibrary={project.components}
+          project={project}
           onInstanceSelect={handleInstanceSelect}
           selectedInstanceId={selectedInstanceId}
         />

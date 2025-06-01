@@ -1,6 +1,7 @@
-import React, { useState, useMemo } from 'react'
+import React, { useState, useMemo, useEffect } from 'react'
 import { Button } from './ui/button'
 import { Badge } from './ui/badge'
+import { CodeEditor } from './ui/CodeEditor'
 import { RefreshCw, ExternalLink, Code, Eye, AlertTriangle, CheckCircle } from 'lucide-react'
 import type { ProjectSchema } from '../types/schema'
 
@@ -13,6 +14,16 @@ interface EmbeddedPreviewProps {
 export function EmbeddedPreview({ project, focusComponent, className }: EmbeddedPreviewProps) {
   const [showCode, setShowCode] = useState(false)
   const [selectedComponentId, setSelectedComponentId] = useState(focusComponent || project.components[0]?.id || '')
+
+  // Sync selection when project changes or focusComponent changes
+  useEffect(() => {
+    if (focusComponent) {
+      setSelectedComponentId(focusComponent)
+    } else if (!selectedComponentId || !project.components.find(c => c.id === selectedComponentId)) {
+      // If no selection or current selection is invalid, auto-select first component
+      setSelectedComponentId(project.components[0]?.id || '')
+    }
+  }, [focusComponent, project.components, selectedComponentId])
 
   const selectedComponent = project.components.find(c => c.id === selectedComponentId)
 
@@ -403,31 +414,38 @@ export function EmbeddedPreview({ project, focusComponent, className }: Embedded
             onChange={(e) => setSelectedComponentId(e.target.value)}
             className="w-full px-3 py-1 text-sm border border-gray-300 rounded"
           >
-            <option value="">Select a component...</option>
-            {project.components.map(comp => (
-              <option key={comp.id} value={comp.id}>
-                {comp.name} ({comp.source})
-              </option>
-            ))}
+            {project.components.length === 0 ? (
+              <option value="">No components available</option>
+            ) : (
+              project.components.map(comp => (
+                <option key={comp.id} value={comp.id}>
+                  {comp.name} ({comp.source})
+                </option>
+              ))
+            )}
           </select>
         </div>
       )}
 
       {/* Content */}
-      <div className="flex-1 overflow-auto p-4">
+      <div className="flex-1 overflow-hidden">
         {showCode && selectedComponent ? (
-          <pre className="bg-gray-900 text-gray-100 rounded-lg p-4 text-sm overflow-auto">
-            {selectedComponent.generatedCode || '// No code available'}
-          </pre>
+          <div className="h-full p-4">
+            <CodeEditor
+              code={selectedComponent.generatedCode || '// No code available'}
+              language="tsx"
+              theme="dark"
+              readOnly={true}
+              className="h-full"
+            />
+          </div>
         ) : (
-          renderComponentPreview()
+          <div className="overflow-auto p-4 h-full">
+            {renderComponentPreview()}
+          </div>
         )}
       </div>
 
-      {/* Footer Help */}
-      <div className="p-3 border-t bg-muted/20 text-xs text-muted-foreground">
-        💡 For fully interactive testing, try CodeSandbox, StackBlitz, or local development
-      </div>
     </div>
   )
 }
