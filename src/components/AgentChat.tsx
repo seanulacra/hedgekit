@@ -149,20 +149,12 @@ export function AgentChat({ project, onUpdateProject, uiActions }: AgentChatProp
 
   return (
     <div className="h-full flex flex-col">
-      {/* Header Section */}
-      <div className="space-y-4 pb-4">
-        {/* Header with project info */}
-        <div className="flex gap-2 text-sm text-muted-foreground">
-          <Badge variant="outline">{project.components.length} components</Badge>
-          <Badge variant="outline">{project.assets?.length || 0} assets</Badge>
-          <Badge variant="outline">{project.framework}</Badge>
-        </div>
-        
-        {/* Agent Selection */}
+      {/* Compact Header */}
+      <div className="space-y-2 pb-3">
+        {/* Agent Selection with inline info */}
         <div className="flex items-center gap-2">
-          <Settings className="h-4 w-4 text-muted-foreground" />
           <Select value={currentProvider} onValueChange={handleProviderChange}>
-            <SelectTrigger className="w-full">
+            <SelectTrigger className="flex-1 h-8">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -177,23 +169,13 @@ export function AgentChat({ project, onUpdateProject, uiActions }: AgentChatProp
             </SelectContent>
           </Select>
         </div>
-
-        {/* Current provider info */}
-        {currentProviderInfo && (
-          <div className="text-xs text-muted-foreground bg-muted/30 rounded-lg p-3">
-            <div className="font-medium">
-              {currentProviderInfo.displayName}
-            </div>
-            <div className="mt-1">{currentProviderInfo.description}</div>
-            <div className="mt-2 flex gap-1 flex-wrap">
-              {currentProviderInfo.capabilities.map((cap, idx) => (
-                <Badge key={idx} variant="secondary" className="text-xs">
-                  {cap}
-                </Badge>
-              ))}
-            </div>
-          </div>
-        )}
+        
+        {/* Condensed project info */}
+        <div className="flex gap-1 text-xs">
+          <Badge variant="outline" className="text-xs h-5">{project.components.length} comp</Badge>
+          <Badge variant="outline" className="text-xs h-5">{project.assets?.length || 0} assets</Badge>
+          <Badge variant="outline" className="text-xs h-5">{project.framework}</Badge>
+        </div>
       </div>
       
       {/* Messages Area */}
