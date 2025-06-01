@@ -29,6 +29,27 @@ interface AgentChatProps {
   uiActions?: UIActions
 }
 
+// Simple markdown parser for agent messages
+const parseMarkdown = (text: string): React.ReactNode => {
+  // Handle bold text
+  const parts = text.split(/(\*\*[^*]+\*\*)/g)
+  
+  return parts.map((part, index) => {
+    if (part.startsWith('**') && part.endsWith('**')) {
+      return <strong key={index}>{part.slice(2, -2)}</strong>
+    }
+    
+    // Handle line breaks
+    const lines = part.split('\n')
+    return lines.map((line, lineIndex) => (
+      <React.Fragment key={`${index}-${lineIndex}`}>
+        {lineIndex > 0 && <br />}
+        {line}
+      </React.Fragment>
+    ))
+  })
+}
+
 export function AgentChat({ project, onUpdateProject, uiActions }: AgentChatProps) {
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
@@ -238,7 +259,7 @@ export function AgentChat({ project, onUpdateProject, uiActions }: AgentChatProp
                     ? 'bg-primary text-primary-foreground'
                     : 'bg-muted'
                 }`}>
-                  <p className="text-sm">{message.content}</p>
+                  <p className="text-sm">{parseMarkdown(message.content)}</p>
                   
                   {/* Show provider info for agent messages */}
                   {message.role === 'agent' && message.provider && (

@@ -21,6 +21,13 @@ export interface AgentChatRequest {
   project: any // ProjectSchema
   conversationHistory: AgentMessage[]
   provider?: AgentProvider
+  context?: {
+    workflowContinuation?: boolean
+    previousTool?: string
+    nextTool?: string
+    continuationArgs?: any
+    forceTool?: string
+  }
 }
 
 export interface AgentChatResponse {

@@ -15,7 +15,7 @@ export class AgentOrchestrator {
   private currentProvider: AgentProvider = 'claude-sonnet-4'
   
   // Action budget system
-  private actionBudget: number = 10
+  private actionBudget: number = 20  // Increased from 10 to allow for longer workflows
   private actionsBudgetUsed: number = 0
   private sessionStartTime: number = Date.now()
 
@@ -166,6 +166,10 @@ export class AgentOrchestrator {
       updateProject(updater)
     }
 
+    // Set the user intent for tool executor workflow decisions
+    const toolExecutor = new (await import('./agentTools')).AgentToolExecutor(currentProject, captureUpdateProject, uiActions)
+    toolExecutor.setUserIntent(originalUserMessage || request.message)
+    
     // Execute the initial request
     const initialResponse = await provider.chatWithAgent(request, captureUpdateProject, uiActions)
     
@@ -270,7 +274,10 @@ export class AgentOrchestrator {
         return lowerMessage.includes('component') || 
                lowerMessage.includes('card') ||
                lowerMessage.includes('create') ||
-               lowerMessage.includes('build')
+               lowerMessage.includes('build') ||
+               lowerMessage.includes('wizard') ||
+               lowerMessage.includes('generate') ||
+               lowerMessage.includes('iterate')
       case 'if_user_intent_complete':
         return false // TODO: Implement completion detection
       default:
