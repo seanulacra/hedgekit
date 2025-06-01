@@ -215,12 +215,12 @@ export function ProjectPlanWizard({ project, onPlanGenerated, onClose, trigger }
           <div className="space-y-4">
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
               <p className="text-sm text-blue-800">
-                Let's start by understanding your project requirements. This will help create a more accurate and tailored plan.
+                Let's understand what components and assets you want to build. Focus on UI elements and visual design goals.
               </p>
             </div>
             
             <div>
-              <Label htmlFor="businessGoals">Business Goals</Label>
+              <Label htmlFor="businessGoals">Visual & UI Goals</Label>
               <Textarea
                 id="businessGoals"
                 value={wizardData.requirements.businessGoals}
@@ -228,14 +228,14 @@ export function ProjectPlanWizard({ project, onPlanGenerated, onClose, trigger }
                   ...prev, 
                   requirements: { ...prev.requirements, businessGoals: e.target.value }
                 }))}
-                placeholder="What are the main business objectives? What impact do you want to achieve?"
+                placeholder="What kind of interface do you want to create? What visual style or aesthetic are you aiming for?"
                 rows={3}
                 className="mt-1"
               />
             </div>
             
             <div>
-              <Label htmlFor="targetAudience">Target Audience</Label>
+              <Label htmlFor="targetAudience">UI Users & Context</Label>
               <Textarea
                 id="targetAudience"
                 value={wizardData.requirements.targetAudience}
@@ -243,14 +243,14 @@ export function ProjectPlanWizard({ project, onPlanGenerated, onClose, trigger }
                   ...prev, 
                   requirements: { ...prev.requirements, targetAudience: e.target.value }
                 }))}
-                placeholder="Who is your primary audience? What are their needs and pain points?"
+                placeholder="Who will interact with these components? What's the usage context? (e.g., mobile app, web dashboard, game UI)"
                 rows={3}
                 className="mt-1"
               />
             </div>
             
             <div>
-              <Label htmlFor="keyProblems">Key Problems to Solve</Label>
+              <Label htmlFor="keyProblems">UI Challenges to Address</Label>
               <Textarea
                 id="keyProblems"
                 value={wizardData.requirements.keyProblems}
@@ -258,14 +258,14 @@ export function ProjectPlanWizard({ project, onPlanGenerated, onClose, trigger }
                   ...prev, 
                   requirements: { ...prev.requirements, keyProblems: e.target.value }
                 }))}
-                placeholder="What specific problems will this project solve? What challenges are you addressing?"
+                placeholder="What UI/UX problems need solving? Any specific design patterns or interactions you need?"
                 rows={3}
                 className="mt-1"
               />
             </div>
             
             <div>
-              <Label htmlFor="successMetrics">Success Metrics (Optional)</Label>
+              <Label htmlFor="successMetrics">Design Success Criteria (Optional)</Label>
               <Textarea
                 id="successMetrics"
                 value={wizardData.requirements.successMetrics}
@@ -273,14 +273,14 @@ export function ProjectPlanWizard({ project, onPlanGenerated, onClose, trigger }
                   ...prev, 
                   requirements: { ...prev.requirements, successMetrics: e.target.value }
                 }))}
-                placeholder="How will you measure success? (e.g., user engagement, conversion rates, performance metrics)"
+                placeholder="How will you measure design success? (e.g., usability, visual appeal, component reusability)"
                 rows={2}
                 className="mt-1"
               />
             </div>
             
             <div>
-              <Label htmlFor="constraints">Constraints & Limitations (Optional)</Label>
+              <Label htmlFor="constraints">Design Constraints (Optional)</Label>
               <Textarea
                 id="constraints"
                 value={wizardData.requirements.constraints}
@@ -288,7 +288,7 @@ export function ProjectPlanWizard({ project, onPlanGenerated, onClose, trigger }
                   ...prev, 
                   requirements: { ...prev.requirements, constraints: e.target.value }
                 }))}
-                placeholder="Any technical, budget, or timeline constraints? Integration requirements?"
+                placeholder="Any design system requirements, accessibility needs, or visual constraints?"
                 rows={2}
                 className="mt-1"
               />
@@ -532,14 +532,14 @@ export function ProjectPlanWizard({ project, onPlanGenerated, onClose, trigger }
                 <div>
                   <h4 className="font-medium text-amber-900 mb-2">Confirm AI Plan Generation</h4>
                   <p className="text-sm text-amber-800 mb-3">
-                    Once you proceed, the AI will generate a comprehensive project plan based on your requirements. This will include:
+                    Once you proceed, the AI will generate a component and asset creation plan. This will include:
                   </p>
                   <ul className="text-sm text-amber-700 space-y-1 ml-4">
-                    <li>• Development phases with timelines</li>
-                    <li>• Detailed task breakdown with dependencies</li>
-                    <li>• Technical architecture recommendations</li>
-                    <li>• Component hierarchy and design system</li>
-                    <li>• Milestone planning with success criteria</li>
+                    <li>• Component creation phases and priorities</li>
+                    <li>• Asset generation tasks (images, icons, etc.)</li>
+                    <li>• UI component hierarchy and relationships</li>
+                    <li>• Design system recommendations</li>
+                    <li>• Visual milestones and design goals</li>
                   </ul>
                 </div>
               </div>
@@ -593,11 +593,11 @@ export function ProjectPlanWizard({ project, onPlanGenerated, onClose, trigger }
               <div>
                 <h4 className="font-medium flex items-center gap-2 text-sm">
                   <AlertTriangle className="h-4 w-4" />
-                  Requirements Analysis
+                  Design Requirements
                 </h4>
                 <div className="text-xs text-gray-600 mt-1 space-y-1">
-                  <p><span className="font-medium">Goals:</span> {wizardData.requirements.businessGoals}</p>
-                  <p><span className="font-medium">Problems:</span> {wizardData.requirements.keyProblems}</p>
+                  <p><span className="font-medium">UI Goals:</span> {wizardData.requirements.businessGoals}</p>
+                  <p><span className="font-medium">UI Challenges:</span> {wizardData.requirements.keyProblems}</p>
                   {wizardData.requirements.constraints && (
                     <p><span className="font-medium">Constraints:</span> {wizardData.requirements.constraints}</p>
                   )}
@@ -663,8 +663,8 @@ export function ProjectPlanWizard({ project, onPlanGenerated, onClose, trigger }
                 <span className="text-sm font-medium text-blue-900">AI Plan Generation</span>
               </div>
               <p className="text-xs text-blue-700">
-                Claude will analyze your requirements and generate a comprehensive project plan with phases, 
-                tasks, milestones, and technical recommendations.
+                Claude will analyze your requirements and generate a focused component and asset creation plan 
+                with UI development phases, design tasks, and visual milestones.
               </p>
             </div>
           </div>

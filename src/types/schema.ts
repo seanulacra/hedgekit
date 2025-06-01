@@ -124,6 +124,19 @@ export interface ProjectSchema {
       dimensions: { width: number; height: number; aspectRatio: number }
     }
   }[]
+  chatHistory?: {
+    id: string
+    role: 'user' | 'agent'
+    content: string
+    timestamp: string
+    provider?: string
+    toolCalls?: Array<{
+      id: string
+      function: string
+      args: any
+      result: any
+    }>
+  }[]
   createdAt: string
   updatedAt: string
 }

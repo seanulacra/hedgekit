@@ -19,10 +19,11 @@ import {
 } from "./ui/sidebar"
 
 // Create the AI Agent Sidebar
-export function AIAgentSidebar({ project, onUpdateProject, uiActions, ...props }: {
+export function AIAgentSidebar({ project, onUpdateProject, uiActions, agentChatRef, ...props }: {
   project: ProjectSchema
   onUpdateProject: (updater: (prev: ProjectSchema) => ProjectSchema) => void
   uiActions?: UIActions
+  agentChatRef?: React.RefObject<any>
 } & React.ComponentProps<typeof Sidebar>) {
   return (
     <Sidebar collapsible="icon" {...props}>
@@ -47,8 +48,9 @@ export function AIAgentSidebar({ project, onUpdateProject, uiActions, ...props }
       <SidebarContent className="flex flex-col h-full">
         <SidebarGroup className="group-data-[collapsible=icon]:hidden flex-1 flex flex-col">
           <SidebarGroupLabel>Agent Chat</SidebarGroupLabel>
-          <SidebarGroupContent className="px-0 flex-1 flex flex-col">
+          <SidebarGroupContent className="flex-1 flex flex-col">
             <AgentChat 
+              ref={agentChatRef}
               project={project} 
               onUpdateProject={onUpdateProject}
               uiActions={uiActions}
@@ -67,7 +69,10 @@ export function AgentSidebarWrapper({
   uiActions, 
   children,
   onShowProjectManager,
-  headerActions
+  headerActions,
+  agentChatRef,
+  open,
+  onOpenChange
 }: {
   project: ProjectSchema
   onUpdateProject: (updater: (prev: ProjectSchema) => ProjectSchema) => void
@@ -75,9 +80,14 @@ export function AgentSidebarWrapper({
   children: React.ReactNode
   onShowProjectManager?: () => void
   headerActions?: React.ReactNode
+  agentChatRef?: React.RefObject<any>
+  open?: boolean
+  onOpenChange?: (open: boolean) => void
 }) {
   return (
     <SidebarProvider
+      open={open}
+      onOpenChange={onOpenChange}
       style={
         {
           "--sidebar-width": "24rem",
@@ -88,6 +98,7 @@ export function AgentSidebarWrapper({
         project={project}
         onUpdateProject={onUpdateProject}
         uiActions={uiActions}
+        agentChatRef={agentChatRef}
       />
       <SidebarInset>
         <header className="flex h-16 shrink-0 items-center justify-between gap-4 px-4 border-b">

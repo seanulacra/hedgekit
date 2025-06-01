@@ -27,6 +27,13 @@ interface AgentChatProps {
   project: ProjectSchema
   onUpdateProject: (updater: (prev: ProjectSchema) => ProjectSchema) => void
   uiActions?: UIActions
+  onNewMessages?: (messages: Message[]) => void // Callback when new messages are added
+}
+
+// Export a ref interface for programmatic control
+export interface AgentChatRef {
+  addMessage: (message: string, isAgent?: boolean) => void
+  addAgentResponse: (response: any) => void
 }
 
 // Simple markdown parser for agent messages
@@ -50,7 +57,8 @@ const parseMarkdown = (text: string): React.ReactNode => {
   })
 }
 
-export function AgentChat({ project, onUpdateProject, uiActions }: AgentChatProps) {
+export const AgentChat = React.forwardRef<AgentChatRef, AgentChatProps>(
+  ({ project, onUpdateProject, uiActions, onNewMessages }, ref) => {
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
   const [isThinking, setIsThinking] = useState(false)
@@ -58,19 +66,32 @@ export function AgentChat({ project, onUpdateProject, uiActions }: AgentChatProp
   const [currentProvider, setCurrentProvider] = useState<AgentProvider>(() => orchestrator.getCurrentProvider())
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
-  // Initialize with a welcome message from the current provider
+  // Load chat history from project or initialize with welcome message
   useEffect(() => {
-    const providerInfo = orchestrator.getProviderInfo(currentProvider)
-    if (providerInfo) {
-      setMessages([{
-        id: '1',
-        role: 'agent',
-        content: `Hi! I'm your ${providerInfo.displayName} agent with real tool access. I can see your project "${project.name}" has ${project.components.length} components and ${project.assets?.length || 0} assets. I can actually generate components, create images, and modify your project. What would you like to build or improve?`,
-        timestamp: new Date(),
-        provider: currentProvider
-      }])
+    if (project.chatHistory && project.chatHistory.length > 0) {
+      // Load existing chat history
+      const loadedMessages: Message[] = project.chatHistory.map(msg => ({
+        ...msg,
+        timestamp: new Date(msg.timestamp),
+        provider: msg.provider as AgentProvider
+      }))
+      setMessages(loadedMessages)
+    } else {
+      // Initialize with welcome message only if no chat history exists
+      const providerInfo = orchestrator.getProviderInfo(currentProvider)
+      if (providerInfo) {
+        const welcomeMessage: Message = {
+          id: '1',
+          role: 'agent',
+          content: `Hi! I'm your ${providerInfo.displayName} agent with real tool access. I can see your project "${project.name}" has ${project.components.length} components and ${project.assets?.length || 0} assets. I can actually generate components, create images, and modify your project. What would you like to build or improve?`,
+          timestamp: new Date(),
+          provider: currentProvider
+        }
+        setMessages([welcomeMessage])
+        saveChatHistory([welcomeMessage])
+      }
     }
-  }, [project.name, project.components.length, project.assets?.length, currentProvider, orchestrator])
+  }, [project.id]) // Only run when project changes
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -79,6 +100,24 @@ export function AgentChat({ project, onUpdateProject, uiActions }: AgentChatProp
   useEffect(() => {
     scrollToBottom()
   }, [messages])
+
+  // Save chat history to project
+  const saveChatHistory = (messagesToSave: Message[]) => {
+    const chatHistory = messagesToSave.map(msg => ({
+      id: msg.id,
+      role: msg.role,
+      content: msg.content,
+      timestamp: msg.timestamp.toISOString(),
+      provider: msg.provider,
+      toolCalls: msg.toolCalls
+    }))
+
+    onUpdateProject(prev => ({
+      ...prev,
+      chatHistory,
+      updatedAt: new Date().toISOString()
+    }))
+  }
 
   const convertToAgentMessages = (messages: Message[]): AgentMessage[] => {
     return messages.map(msg => ({
@@ -102,7 +141,9 @@ export function AgentChat({ project, onUpdateProject, uiActions }: AgentChatProp
       timestamp: new Date(),
       provider
     }
-    setMessages(prev => [...prev, switchMessage])
+    const updatedMessages = [...messages, switchMessage]
+    setMessages(updatedMessages)
+    saveChatHistory(updatedMessages)
   }
 
   const handleSendMessage = async () => {
@@ -175,7 +216,14 @@ export function AgentChat({ project, onUpdateProject, uiActions }: AgentChatProp
         newMessages.push(agentResponse)
       }
 
-      setMessages(prev => [...prev, ...newMessages])
+      const allNewMessages = [...messages, userMessage, ...newMessages]
+      setMessages(allNewMessages)
+      saveChatHistory(allNewMessages)
+      
+      // Notify parent about new messages
+      if (onNewMessages) {
+        onNewMessages(newMessages)
+      }
     } catch (error) {
       console.error('Agent chat error:', error)
       const errorMessage: Message = {
@@ -185,7 +233,9 @@ export function AgentChat({ project, onUpdateProject, uiActions }: AgentChatProp
         timestamp: new Date(),
         provider: currentProvider
       }
-      setMessages(prev => [...prev, errorMessage])
+      const allNewMessages = [...messages, userMessage, errorMessage]
+      setMessages(allNewMessages)
+      saveChatHistory(allNewMessages)
     } finally {
       setIsThinking(false)
     }
@@ -198,11 +248,72 @@ export function AgentChat({ project, onUpdateProject, uiActions }: AgentChatProp
     }
   }
 
+  // Expose methods for programmatic control
+  React.useImperativeHandle(ref, () => ({
+    addMessage: (message: string, isAgent: boolean = false) => {
+      setMessages(prevMessages => {
+        const newMessage: Message = {
+          id: Date.now().toString(),
+          role: isAgent ? 'agent' : 'user',
+          content: message,
+          timestamp: new Date(),
+          provider: isAgent ? currentProvider : undefined
+        }
+        const updatedMessages = [...prevMessages, newMessage]
+        saveChatHistory(updatedMessages)
+        return updatedMessages
+      })
+    },
+    addAgentResponse: (response: any) => {
+      setMessages(prevMessages => {
+        const newMessages: Message[] = []
+        
+        // Add tool call messages first
+        if (response.toolCalls && response.toolCalls.length > 0) {
+          response.toolCalls.forEach((toolCall: any, index: number) => {
+            const toolMessage: Message = {
+              id: `${Date.now()}_tool_${index}`,
+              role: 'agent',
+              content: toolCall.result.summary || `Executed ${toolCall.function}`,
+              timestamp: new Date(),
+              provider: response.provider,
+              toolCalls: [toolCall]
+            }
+            newMessages.push(toolMessage)
+          })
+        }
+        
+        // Add final agent response if there's content
+        if (response.message && response.message.trim()) {
+          const agentResponse: Message = {
+            id: (Date.now() + 1).toString(),
+            role: 'agent',
+            content: response.message,
+            timestamp: new Date(),
+            provider: response.provider
+          }
+          newMessages.push(agentResponse)
+        }
+        
+        const allNewMessages = [...prevMessages, ...newMessages]
+        
+        // Save to project storage
+        saveChatHistory(allNewMessages)
+        
+        if (onNewMessages) {
+          onNewMessages(newMessages)
+        }
+        
+        return allNewMessages
+      })
+    }
+  }))
+
   const availableProviders = orchestrator.getAvailableProviders()
   const currentProviderInfo = orchestrator.getProviderInfo(currentProvider)
 
   return (
-    <div className="h-full flex flex-col">
+    <div className="h-full flex flex-col p-4">
       {/* Compact Header */}
       <div className="space-y-2 pb-3">
         {/* Agent Selection with inline info */}
@@ -233,7 +344,7 @@ export function AgentChat({ project, onUpdateProject, uiActions }: AgentChatProp
       </div>
       
       {/* Messages Area */}
-      <div className="flex-1 overflow-y-auto space-y-4 min-h-0">
+      <div className="flex-1 overflow-y-auto space-y-4 min-h-0 px-4 py-2">
           {messages.map((message) => (
             <div
               key={message.id}
@@ -257,7 +368,7 @@ export function AgentChat({ project, onUpdateProject, uiActions }: AgentChatProp
                 <div className={`rounded-lg p-3 ${
                   message.role === 'user'
                     ? 'bg-primary text-primary-foreground'
-                    : 'bg-muted'
+                    : 'bg-muted text-foreground'
                 }`}>
                   <p className="text-sm">{parseMarkdown(message.content)}</p>
                   
@@ -346,4 +457,6 @@ export function AgentChat({ project, onUpdateProject, uiActions }: AgentChatProp
       )}
     </div>
   )
-}
+})
+
+AgentChat.displayName = 'AgentChat'

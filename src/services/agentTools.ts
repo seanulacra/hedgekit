@@ -43,21 +43,21 @@ export const agentTools: EnhancedTool[] = [
     type: "function" as const,
     function: {
       name: "generate_component",
-      description: "Generate a new React component using V0",
+      description: "Generate a new React component using AI. The component will be created with the specified name and requirements.",
       parameters: {
         type: "object",
         properties: {
           name: {
             type: "string",
-            description: "Name for the component"
+            description: "Name for the component (e.g., 'CharacterCard', 'WizardProfile')"
           },
           description: {
-            type: "string", 
-            description: "Description of what the component should do"
+            type: "string",
+            description: "Detailed description of what the component should look like and do"
           },
           requirements: {
             type: "string",
-            description: "Specific requirements or constraints for the component (optional)"
+            description: "Optional specific requirements or constraints for the component"
           }
         },
         required: ["name", "description"]
@@ -65,9 +65,41 @@ export const agentTools: EnhancedTool[] = [
     },
     workflow: {
       continueOnSuccess: {
-        nextTool: "capture_preview_screenshot",
+        nextTool: "reflect_on_artifact",
         condition: "always",
-        maxChainLength: 3
+        maxChainLength: 2
+      }
+    }
+  },
+  {
+    type: "function" as const,
+    function: {
+      name: "edit_component",
+      description: "Edit an existing React component based on feedback or new requirements. Use this after reflection to improve components.",
+      parameters: {
+        type: "object",
+        properties: {
+          componentId: {
+            type: "string",
+            description: "ID of the component to edit"
+          },
+          editInstructions: {
+            type: "string",
+            description: "Specific instructions for how to modify the component"
+          },
+          reflectionInsights: {
+            type: "string",
+            description: "Optional: Insights from reflection that inform the edit"
+          }
+        },
+        required: ["componentId", "editInstructions"]
+      }
+    },
+    workflow: {
+      continueOnSuccess: {
+        nextTool: "reflect_on_artifact",
+        condition: "always",
+        maxChainLength: 1
       }
     }
   },
@@ -75,27 +107,27 @@ export const agentTools: EnhancedTool[] = [
     type: "function" as const,
     function: {
       name: "generate_image_asset",
-      description: "Generate an image asset using OpenAI's gpt-image-1 model",
+      description: "Generate an image asset using AI. Images are uploaded to CDN for use in components.",
       parameters: {
         type: "object",
         properties: {
           name: {
             type: "string",
-            description: "Name for the image asset"
+            description: "Name for the image asset (e.g., 'wizard-avatar', 'magic-background')"
           },
           prompt: {
             type: "string",
-            description: "Detailed prompt for image generation"
+            description: "Detailed description of the image to generate"
           },
           background: {
             type: "string",
-            enum: ["transparent", "opaque", "auto"],
-            description: "Background type for the image"
+            enum: ["transparent", "white", "black", "gradient"],
+            description: "Background style for the image"
           },
           size: {
             type: "string",
             enum: ["1024x1024", "1024x1536", "1536x1024", "auto"],
-            description: "Size of the generated image (gpt-image-1 supported sizes)"
+            description: "Image dimensions (supported by gpt-image-1)"
           }
         },
         required: ["name", "prompt"]
@@ -105,7 +137,7 @@ export const agentTools: EnhancedTool[] = [
       continueOnSuccess: {
         nextTool: "reflect_on_artifact",
         condition: "always",
-        maxChainLength: 3
+        maxChainLength: 2
       }
     }
   },
@@ -454,36 +486,28 @@ export const agentTools: EnhancedTool[] = [
     type: "function" as const,
     function: {
       name: "start_development_session",
-      description: "Begin an automated development session where the agent works through multiple tasks",
+      description: "Begin an automated development session that creates multiple components and assets in one go",
       parameters: {
         type: "object",
         properties: {
-          duration_minutes: {
-            type: "number",
-            description: "Target duration for the development session (default: 30)",
-            minimum: 15,
-            maximum: 120
-          },
-          focus_type: {
+          project_theme: {
             type: "string",
-            enum: ["components", "features", "testing", "architecture", "mixed"],
-            description: "Type of tasks to focus on during the session"
+            description: "Theme or topic for the components/assets (e.g., 'waffle', 'space', 'wizard')",
           },
-          max_tasks: {
+          component_count: {
             type: "number",
-            description: "Maximum number of tasks to attempt (default: 3)",
+            description: "Number of components to create (default: 3)",
             minimum: 1,
-            maximum: 10
+            maximum: 5
+          },
+          asset_count: {
+            type: "number",
+            description: "Number of image assets to create (default: 2)",
+            minimum: 0,
+            maximum: 5
           }
         },
         required: []
-      }
-    },
-    workflow: {
-      continueOnSuccess: {
-        nextTool: "execute_task",
-        condition: "always",
-        maxChainLength: 5
       }
     }
   },
@@ -617,6 +641,9 @@ export class AgentToolExecutor {
       
       case "generate_component":
         return this.generateComponent(args)
+      
+      case "edit_component":
+        return this.editComponent(args)
       
       case "generate_image_asset":
         return this.generateImageAsset(args)
@@ -753,6 +780,72 @@ export class AgentToolExecutor {
         success: false,
         error: error instanceof Error ? error.message : 'Component generation failed',
         summary: `Failed to generate component: ${error instanceof Error ? error.message : 'Unknown error'}`
+      }
+    }
+  }
+
+  private async editComponent(args: { componentId: string, editInstructions: string, reflectionInsights?: string }) {
+    try {
+      const { componentId, editInstructions, reflectionInsights } = args
+      
+      // Find the component to edit
+      const component = this.project.components.find(c => c.id === componentId)
+      if (!component) {
+        throw new Error(`Component with ID ${componentId} not found`)
+      }
+
+      if (!component.generatedCode) {
+        throw new Error(`Component ${component.name} has no code to edit`)
+      }
+
+      // Combine edit instructions with reflection insights
+      const fullPrompt = reflectionInsights 
+        ? `${editInstructions}\n\nBased on reflection insights: ${reflectionInsights}`
+        : editInstructions
+
+      // Use V0 to regenerate the component with modifications
+      if (!V0GenerationService.isV0Available()) {
+        throw new Error('V0 service is not available. Please configure your V0 API key.')
+      }
+
+      const result = await V0GenerationService.generateComponent({
+        prompt: `Edit this existing React component:\n\n${component.generatedCode}\n\nModifications requested: ${fullPrompt}`,
+        projectContext: {
+          framework: this.project.framework,
+          components: this.project.components.map(c => c.name),
+          dependencies: this.project.dependencies || {}
+        }
+      })
+
+      // Update the component with edited code
+      this.updateProject(prev => ({
+        ...prev,
+        components: prev.components.map(c => 
+          c.id === componentId 
+            ? {
+                ...c,
+                generatedCode: result.code,
+                updatedAt: new Date().toISOString()
+              }
+            : c
+        ),
+        updatedAt: new Date().toISOString()
+      }))
+
+      return {
+        success: true,
+        data: { 
+          componentId,
+          componentName: component.name,
+          edited: true
+        },
+        summary: `Edited component "${component.name}" based on: ${editInstructions.substring(0, 100)}...`
+      }
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Component editing failed',
+        summary: `Failed to edit component: ${error instanceof Error ? error.message : 'Unknown error'}`
       }
     }
   }

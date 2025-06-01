@@ -22,6 +22,7 @@ interface PlanExecutionCTAProps {
     phases: { [phaseId: string]: number }
     milestones: { completed: number; total: number }
   }
+  isAgentWorking?: boolean
   onStartDevelopmentSession?: () => void
   onExecuteNextTask?: () => void
   onReviewPlan?: () => void
@@ -31,6 +32,7 @@ export function PlanExecutionCTA({
   plan, 
   nextTasks, 
   progress, 
+  isAgentWorking = false,
   onStartDevelopmentSession,
   onExecuteNextTask,
   onReviewPlan 
@@ -76,27 +78,45 @@ export function PlanExecutionCTA({
           {hasAvailableTasks && (
             <Button 
               onClick={onStartDevelopmentSession}
-              className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 h-12"
+              disabled={isAgentWorking}
+              className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 h-12 disabled:opacity-50"
             >
-              <Bot className="h-4 w-4" />
+              {isAgentWorking ? (
+                <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full" />
+              ) : (
+                <Bot className="h-4 w-4" />
+              )}
               <div className="text-left">
-                <div className="font-medium">Start AI Development Session</div>
-                <div className="text-xs opacity-90">Let the agent work on multiple tasks</div>
+                <div className="font-medium">
+                  {isAgentWorking ? 'Agent Working...' : 'Start AI Development Session'}
+                </div>
+                <div className="text-xs opacity-90">
+                  {isAgentWorking ? 'Creating components and assets' : 'Let the agent work on multiple tasks'}
+                </div>
               </div>
-              <ArrowRight className="h-4 w-4 ml-auto" />
+              {!isAgentWorking && <ArrowRight className="h-4 w-4 ml-auto" />}
             </Button>
           )}
           
           {hasAvailableTasks && (
             <Button 
               onClick={onExecuteNextTask}
+              disabled={isAgentWorking}
               variant="outline"
-              className="flex items-center gap-2 border-blue-300 hover:bg-blue-50 h-12"
+              className="flex items-center gap-2 border-blue-300 hover:bg-blue-50 h-12 disabled:opacity-50"
             >
-              <Play className="h-4 w-4" />
+              {isAgentWorking ? (
+                <div className="animate-spin h-4 w-4 border-2 border-blue-600 border-t-transparent rounded-full" />
+              ) : (
+                <Play className="h-4 w-4" />
+              )}
               <div className="text-left">
-                <div className="font-medium">Execute Next Task</div>
-                <div className="text-xs text-gray-600">Work on one task at a time</div>
+                <div className="font-medium">
+                  {isAgentWorking ? 'Executing...' : 'Execute Next Task'}
+                </div>
+                <div className="text-xs text-gray-600">
+                  {isAgentWorking ? 'Working on task' : 'Work on one task at a time'}
+                </div>
               </div>
             </Button>
           )}
@@ -106,12 +126,17 @@ export function PlanExecutionCTA({
         <div className="flex flex-wrap gap-2">
           <Button 
             onClick={onReviewPlan}
+            disabled={isAgentWorking}
             variant="ghost" 
             size="sm"
-            className="flex items-center gap-2 text-blue-700 hover:text-blue-800 hover:bg-blue-100"
+            className="flex items-center gap-2 text-blue-700 hover:text-blue-800 hover:bg-blue-100 disabled:opacity-50"
           >
-            <RefreshCw className="h-3 w-3" />
-            Review & Iterate Plan
+            {isAgentWorking ? (
+              <div className="animate-spin h-3 w-3 border-2 border-blue-600 border-t-transparent rounded-full" />
+            ) : (
+              <RefreshCw className="h-3 w-3" />
+            )}
+            {isAgentWorking ? 'Reviewing...' : 'Review & Iterate Plan'}
           </Button>
           
           {!hasAvailableTasks && !isNearComplete && (

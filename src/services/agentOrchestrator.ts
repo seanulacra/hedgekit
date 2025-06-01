@@ -15,7 +15,7 @@ export class AgentOrchestrator {
   private currentProvider: AgentProvider = 'claude-sonnet-4'
   
   // Action budget system
-  private actionBudget: number = 7  // Optimal range for thoughtful execution
+  private actionBudget: number = 5  // Reduced for testing
   private actionsBudgetUsed: number = 0
   private sessionStartTime: number = Date.now()
 
@@ -150,8 +150,9 @@ export class AgentOrchestrator {
     // Check action budget before proceeding
     const budgetNudge = this.shouldNudgeAboutBudget()
     if (this.actionsBudgetUsed >= this.actionBudget) {
+      console.log(`Budget exhausted: ${this.actionsBudgetUsed}/${this.actionBudget}`)
       return {
-        message: `${budgetNudge}\n\nSession paused. Use resetActionBudget() to continue or increase budget with setActionBudget().`,
+        message: `${budgetNudge}\n\nBudget exhausted (${this.actionsBudgetUsed}/${this.actionBudget} tools used). Click a CTA button to reset and continue.`,
         toolCalls: [],
         success: false,
         error: 'Action budget exhausted',
@@ -175,12 +176,66 @@ export class AgentOrchestrator {
     
     // Track action budget consumption
     if (initialResponse.toolCalls) {
-      this.consumeActionBudget(initialResponse.toolCalls.length)
+      const consumed = this.consumeActionBudget(initialResponse.toolCalls.length)
+      console.log(`Budget consumption: ${initialResponse.toolCalls.length} tools, total used: ${this.actionsBudgetUsed}/${this.actionBudget}, consumed: ${consumed}`)
     }
 
-    // Check for workflow continuation
+    // Check for workflow continuation or budget-based continuation
     if (initialResponse.toolCalls && initialResponse.toolCalls.length > 0 && initialResponse.success) {
       const lastTool = initialResponse.toolCalls[initialResponse.toolCalls.length - 1]
+      
+      // Simple check: if we have budget and only used 1-2 tools, nudge to continue
+      const hasRemainingBudget = this.actionsBudgetUsed < this.actionBudget - 1 // Still have at least 2 actions remaining
+      const usedFewTools = initialResponse.toolCalls.length <= 1 // Only nudge if just used 1 tool
+      
+      // If we have plenty of budget left and haven't done much, nudge to continue
+      if (hasRemainingBudget && usedFewTools) {
+        console.log(`Budget: ${this.actionsBudgetUsed}/${this.actionBudget} used. Nudging to continue...`)
+        
+        try {
+          // Simple nudge based on remaining budget
+          const nudgeMessage = `Continue working. You have ${this.actionBudget - this.actionsBudgetUsed} actions remaining. Execute more tools to make progress.`
+          
+          // Create a nudge request that won't be saved to history
+          const nudgeRequest: AgentChatRequest = {
+            message: nudgeMessage,
+            project: currentProject,
+            conversationHistory: [
+              ...request.conversationHistory,
+              {
+                id: Date.now().toString(),
+                role: 'assistant',
+                content: initialResponse.message,
+                timestamp: new Date(),
+                toolCalls: initialResponse.toolCalls
+              }
+            ],
+            provider: targetProvider
+          }
+          
+          // Get continuation response
+          const continuationResponse = await this.chatWithWorkflow(
+            nudgeRequest,
+            updateProject,
+            uiActions,
+            originalUserMessage
+          )
+          
+          // Merge responses without recording the nudge
+          return {
+            message: `${initialResponse.message}\n\n${continuationResponse.message}`,
+            toolCalls: [...(initialResponse.toolCalls || []), ...(continuationResponse.toolCalls || [])],
+            success: initialResponse.success && continuationResponse.success,
+            error: continuationResponse.error || initialResponse.error,
+            provider: targetProvider
+          }
+        } catch (error) {
+          console.warn('Budget-based continuation failed:', error)
+          // Fall through to original response
+        }
+      }
+      
+      // Original workflow continuation logic
       const workflowDecision = this.shouldContinueWorkflow(lastTool.function, originalUserMessage || request.message)
       
       if (workflowDecision.shouldContinue && workflowDecision.nextTool) {
@@ -277,7 +332,10 @@ export class AgentOrchestrator {
                lowerMessage.includes('build') ||
                lowerMessage.includes('wizard') ||
                lowerMessage.includes('generate') ||
-               lowerMessage.includes('iterate')
+               lowerMessage.includes('iterate') ||
+               lowerMessage.includes('development') ||
+               lowerMessage.includes('session') ||
+               lowerMessage.includes('start')
       case 'if_user_intent_complete':
         return false // TODO: Implement completion detection
       default:
@@ -299,6 +357,22 @@ export class AgentOrchestrator {
               name: `${data.name || 'Image'}Component`,
               description: `Component featuring the generated image: ${data.name || 'custom image'}`,
               requirements: `Create a React component that displays the image at: ${data.cdnUrl}. Make it visually appealing with proper styling.`
+            }
+          }
+        }
+        break
+        
+      case 'generate_image_asset':
+        // From analyze_project_state to generate_image_asset
+        if (lastTool?.function === 'analyze_project_state') {
+          const analysis = lastTool.result.data
+          // If project is empty or related to waffles, create waffle assets
+          if (analysis.name?.toLowerCase().includes('waffle') || analysis.components.length === 0) {
+            return {
+              name: "Waffle Logo",
+              prompt: "A modern, appetizing logo featuring a golden Belgian waffle with syrup dripping, minimalist design, suitable for app branding, vibrant colors",
+              background: "transparent",
+              size: "1024x1024"
             }
           }
         }

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { ComponentGeneratorInterface } from './components/ComponentGenerator'
 import { ProjectSchemaViewer } from './components/ProjectSchemaViewer'
 import { UnifiedPreview } from './components/UnifiedPreview'
@@ -13,13 +13,21 @@ import { ModeToggle } from './components/mode-toggle'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './components/ui/tabs'
 import { useProjectManager } from './hooks/useProjectManager'
 import { ProjectPlanningService } from './services/projectPlanningService'
+import { AgentOrchestrator } from './services/agentOrchestrator'
 import type { ComponentSchema, ImageAsset, ProjectPlan } from './types/schema'
 import type { UIActions } from './services/agentTools'
+import type { AgentChatRequest } from './types/agent'
+import type { AgentChatRef } from './components/AgentChat'
 
 function App() {
   const [showProjectManager, setShowProjectManager] = useState(false)
   const [activeTab, setActiveTab] = useState<'build' | 'project' | 'preview' | 'plan'>('build')
   const [expandedComponents, setExpandedComponents] = useState<Set<string>>(new Set())
+  const [agentOrchestrator] = useState(() => new AgentOrchestrator())
+  const [isAgentWorking, setIsAgentWorking] = useState(false)
+  const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [actionBudget, setActionBudget] = useState({ total: 5, used: 0, remaining: 5 })
+  const agentChatRef = useRef<AgentChatRef>(null)
   const {
     projects,
     currentProject,
@@ -119,7 +127,33 @@ function App() {
         onUpdateProject={updateCurrentProject}
         uiActions={uiActions}
         onShowProjectManager={() => setShowProjectManager(true)}
-        headerActions={<ModeToggle />}
+        agentChatRef={agentChatRef}
+        open={sidebarOpen}
+        onOpenChange={setSidebarOpen}
+        headerActions={
+          <div className="flex items-center gap-3">
+            {isAgentWorking && (
+              <div className="flex items-center gap-2 px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm">
+                <div className="animate-spin h-3 w-3 border-2 border-blue-600 border-t-transparent rounded-full" />
+                Agent Working...
+              </div>
+            )}
+            <div className={`flex items-center gap-2 px-3 py-1 rounded-full text-sm ${
+              actionBudget.remaining === 0 ? 'bg-red-100 text-red-700' : 
+              actionBudget.remaining <= 2 ? 'bg-yellow-100 text-yellow-700' : 
+              'bg-green-100 text-green-700'
+            }`}>
+              <span className="font-medium">Actions:</span>
+              <span className={actionBudget.remaining > 0 ? "text-green-600" : "text-red-600"}>
+                {actionBudget.used}/{actionBudget.total}
+              </span>
+              {actionBudget.remaining === 0 && (
+                <span className="text-red-600 font-medium">FULL</span>
+              )}
+            </div>
+            <ModeToggle />
+          </div>
+        }
       >
         <div className="flex flex-1 flex-col gap-4 p-4">
           
@@ -201,17 +235,114 @@ function App() {
                       plan={currentProject.plan}
                       progress={ProjectPlanningService.getProjectProgress(currentProject.plan)}
                       nextTasks={ProjectPlanningService.getNextTasks(currentProject.plan, 5)}
-                      onStartDevelopmentSession={() => {
-                        // TODO: Implement agent development session trigger
-                        console.log('Starting development session...')
+                      isAgentWorking={isAgentWorking}
+                      onStartDevelopmentSession={async () => {
+                        if (!agentOrchestrator.isAnyProviderAvailable()) {
+                          // Add message to chat instead of alert
+                          agentChatRef.current?.addMessage('❌ No AI providers available. Please check your API keys.', true)
+                          return
+                        }
+                        
+                        // Open sidebar and add user message to chat
+                        setSidebarOpen(true)
+                        agentChatRef.current?.addMessage('Start a development session focused on creating components and assets for this project. Work through multiple tasks systematically.')
+                        
+                        setIsAgentWorking(true)
+                        
+                        // Reset action budget for new development session
+                        agentOrchestrator.resetActionBudget()
+                        setActionBudget(agentOrchestrator.getActionBudget())
+                        
+                        const request: AgentChatRequest = {
+                          message: 'Start a development session focused on creating components and assets for this project. Work through multiple tasks systematically.',
+                          project: currentProject,
+                          conversationHistory: []
+                        }
+                        
+                        try {
+                          const response = await agentOrchestrator.chatWithAgent(request, updateCurrentProject, uiActions)
+                          // Update budget display
+                          setActionBudget(agentOrchestrator.getActionBudget())
+                          // Add response to chat instead of alert
+                          agentChatRef.current?.addAgentResponse(response)
+                        } catch (error) {
+                          console.error('Development session failed:', error)
+                          agentChatRef.current?.addMessage(`❌ Development session failed: ${error instanceof Error ? error.message : 'Unknown error'}. Please try again.`, true)
+                        } finally {
+                          setIsAgentWorking(false)
+                        }
                       }}
-                      onExecuteNextTask={() => {
-                        // TODO: Implement single task execution
-                        console.log('Executing next task...')
+                      onExecuteNextTask={async () => {
+                        if (!agentOrchestrator.isAnyProviderAvailable()) {
+                          agentChatRef.current?.addMessage('❌ No AI providers available. Please check your API keys.', true)
+                          return
+                        }
+                        
+                        const nextTasks = ProjectPlanningService.getNextTasks(currentProject.plan!, 1)
+                        if (nextTasks.length === 0) {
+                          agentChatRef.current?.addMessage('No available tasks to execute.', true)
+                          return
+                        }
+                        
+                        // Open sidebar and add user message to chat
+                        setSidebarOpen(true)
+                        agentChatRef.current?.addMessage(`Execute the next task: "${nextTasks[0].title}". ${nextTasks[0].description}`)
+                        
+                        setIsAgentWorking(true)
+                        
+                        // Reset action budget for task execution
+                        agentOrchestrator.resetActionBudget()
+                        setActionBudget(agentOrchestrator.getActionBudget())
+                        
+                        const request: AgentChatRequest = {
+                          message: `Execute the next task: "${nextTasks[0].title}". ${nextTasks[0].description}`,
+                          project: currentProject,
+                          conversationHistory: []
+                        }
+                        
+                        try {
+                          const response = await agentOrchestrator.chatWithAgent(request, updateCurrentProject, uiActions)
+                          // Update budget display
+                          setActionBudget(agentOrchestrator.getActionBudget())
+                          agentChatRef.current?.addAgentResponse(response)
+                        } catch (error) {
+                          console.error('Task execution failed:', error)
+                          agentChatRef.current?.addMessage(`❌ Task execution failed: ${error instanceof Error ? error.message : 'Unknown error'}. Please try again.`, true)
+                        } finally {
+                          setIsAgentWorking(false)
+                        }
                       }}
-                      onReviewPlan={() => {
-                        // TODO: Implement plan review and iteration
-                        console.log('Reviewing plan...')
+                      onReviewPlan={async () => {
+                        if (!agentOrchestrator.isAnyProviderAvailable()) {
+                          agentChatRef.current?.addMessage('❌ No AI providers available. Please check your API keys.', true)
+                          return
+                        }
+                        
+                        // Open sidebar and add user message to chat
+                        setSidebarOpen(true)
+                        agentChatRef.current?.addMessage('Review the current project plan and suggest improvements. Focus on component and asset creation tasks that will move the project forward.')
+                        
+                        setIsAgentWorking(true)
+                        
+                        // Reset action budget for plan review
+                        agentOrchestrator.resetActionBudget()
+                        setActionBudget(agentOrchestrator.getActionBudget())
+                        
+                        const request: AgentChatRequest = {
+                          message: 'Review the current project plan and suggest improvements. Focus on component and asset creation tasks that will move the project forward.',
+                          project: currentProject,
+                          conversationHistory: []
+                        }
+                        
+                        try {
+                          const response = await agentOrchestrator.chatWithAgent(request, updateCurrentProject, uiActions)
+                          agentChatRef.current?.addAgentResponse(response)
+                        } catch (error) {
+                          console.error('Plan review failed:', error)
+                          agentChatRef.current?.addMessage(`❌ Plan review failed: ${error instanceof Error ? error.message : 'Unknown error'}. Please try again.`, true)
+                        } finally {
+                          setIsAgentWorking(false)
+                        }
                       }}
                     />
                     
