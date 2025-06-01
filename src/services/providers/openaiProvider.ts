@@ -164,7 +164,7 @@ You have access to the same tools that users can access manually:
 2. generate_component - Create new React components using OpenAI or v0
 3. generate_image_asset - Create images/icons using gpt-image-1 
 4. edit_image_asset - Modify existing images with AI
-5. get_webcontainer_preview - Check the live preview status
+5. get_embedded_preview - Check the embedded preview status and sample components
 
 BEHAVIORAL GUIDELINES:
 - ONLY use tools when the user wants to BUILD, CREATE, or MODIFY something

@@ -200,6 +200,14 @@ export class SceneManager {
 
   // Reactive Updates - when a component primitive changes
   onComponentChange(componentId: string, updatedComponent: ComponentSchema): void {
+    // Check if component actually changed to avoid unnecessary updates
+    const existingComponent = this.componentLibrary.get(componentId)
+    if (existingComponent && 
+        existingComponent.generatedCode === updatedComponent.generatedCode &&
+        JSON.stringify(existingComponent.props) === JSON.stringify(updatedComponent.props)) {
+      return // No meaningful changes
+    }
+
     this.componentLibrary.set(componentId, updatedComponent)
     this.notifyComponentChange(componentId, updatedComponent)
 
@@ -212,13 +220,15 @@ export class SceneManager {
       }
     })
 
-    // Trigger scene change notifications for affected scenes
-    affectedScenes.forEach(sceneId => {
-      const scene = this.scenes.get(sceneId)
-      if (scene) {
-        this.notifySceneChange(sceneId, scene)
-      }
-    })
+    // Trigger scene change notifications for affected scenes (debounced)
+    setTimeout(() => {
+      affectedScenes.forEach(sceneId => {
+        const scene = this.scenes.get(sceneId)
+        if (scene) {
+          this.notifySceneChange(sceneId, scene)
+        }
+      })
+    }, 0)
   }
 
   // Event Listeners

@@ -6,19 +6,22 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select'
 import { Eye, Play, Square, Layers, Component } from 'lucide-react'
 import { SceneLiveView, useSceneLiveView } from './SceneLiveView'
-import { WebContainerPreview } from './WebContainerPreview'
+import { SceneCreationModal } from './SceneCreationModal'
+import { EmbeddedPreview } from './EmbeddedPreview'
 import { useSceneManager } from '../hooks/useSceneManager'
 import { ProjectSchema, ComponentSchema, ComponentInstance } from '../types/schema'
+import type { UIActions } from '../services/agentTools'
 
 interface UnifiedPreviewProps {
   project: ProjectSchema
   onUpdateProject: (updater: (prev: ProjectSchema) => ProjectSchema) => void
+  uiActions?: UIActions
 }
 
-export function UnifiedPreview({ project, onUpdateProject }: UnifiedPreviewProps) {
+export function UnifiedPreview({ project, onUpdateProject, uiActions }: UnifiedPreviewProps) {
   const [selectedComponentId, setSelectedComponentId] = useState<string>('')
   const [selectedInstanceId, setSelectedInstanceId] = useState<string>('')
-  const [previewMode, setPreviewMode] = useState<'split' | 'component' | 'scene'>('split')
+  const [previewMode, setPreviewMode] = useState<'component' | 'scene'>('component')
   
   const sceneManager = useSceneManager(project)
   const activeScene = sceneManager.getActiveScene()
@@ -39,14 +42,14 @@ export function UnifiedPreview({ project, onUpdateProject }: UnifiedPreviewProps
     }
   }, [project.scenes, activeScene, sceneManager])
 
-  // Handle component changes
+  // Handle component changes (only when component count changes to avoid loops)
   useEffect(() => {
     if (project.components) {
       project.components.forEach(component => {
         sceneManager.handleComponentChange(component, 'updated')
       })
     }
-  }, [project.components, sceneManager])
+  }, [project.components.length, sceneManager]) // Only re-run when component count changes
 
   const handleComponentSelect = (componentId: string) => {
     setSelectedComponentId(componentId)
@@ -85,161 +88,95 @@ export function UnifiedPreview({ project, onUpdateProject }: UnifiedPreviewProps
   const selectedComponent = availableComponents.find(c => c.id === selectedComponentId)
 
   const ComponentTestingArea = () => (
-    <Card className="h-full flex flex-col">
-      <CardHeader className="pb-3">
-        <div className="flex items-center justify-between">
-          <CardTitle className="text-lg flex items-center gap-2">
-            <Component className="h-5 w-5" />
-            Component Testing
-          </CardTitle>
-          <Badge variant="outline">{availableComponents.length} components</Badge>
-        </div>
-      </CardHeader>
-      
-      <CardContent className="flex-1 flex flex-col space-y-4">
+    <div className="h-full flex flex-col">
+      <CardContent className="flex-1 flex flex-col space-y-3 p-4">
         {/* Component Selector */}
-        <div className="space-y-2">
-          <label className="text-sm font-medium">Select Component</label>
-          <Select value={selectedComponentId} onValueChange={handleComponentSelect}>
-            <SelectTrigger>
-              <SelectValue placeholder="Choose a component to test..." />
-            </SelectTrigger>
-            <SelectContent>
-              {availableComponents.map(component => (
-                <SelectItem key={component.id} value={component.id}>
-                  <div className="flex items-center gap-2">
-                    <Component className="h-4 w-4" />
-                    {component.name}
-                    <Badge variant="secondary" className="text-xs">
-                      {component.source}
-                    </Badge>
-                  </div>
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+        <Select value={selectedComponentId} onValueChange={handleComponentSelect}>
+          <SelectTrigger>
+            <SelectValue placeholder="Choose component..." />
+          </SelectTrigger>
+          <SelectContent>
+            {availableComponents.map(component => (
+              <SelectItem key={component.id} value={component.id}>
+                {component.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
 
         {/* Component Info */}
         {selectedComponent && (
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <h4 className="font-medium">{selectedComponent.name}</h4>
-              <Button 
-                size="sm" 
-                onClick={() => handleAddToScene(selectedComponent.id)}
-                disabled={!liveScene}
-              >
-                <Play className="h-4 w-4 mr-2" />
-                Add to Scene
-              </Button>
-            </div>
-            
-            <div className="text-sm text-muted-foreground space-y-1">
-              <p><span className="font-medium">Props:</span> {Object.keys(selectedComponent.props).length}</p>
-              <p><span className="font-medium">Source:</span> {selectedComponent.source}</p>
-              {selectedComponent.generationMethod && (
-                <p><span className="font-medium">Generated:</span> {selectedComponent.generationMethod}</p>
-              )}
-            </div>
-
-            {/* Props Preview */}
-            {Object.keys(selectedComponent.props).length > 0 && (
-              <div className="border rounded p-3 space-y-2">
-                <h5 className="text-xs font-medium text-muted-foreground">PROPS</h5>
-                {Object.entries(selectedComponent.props).map(([name, prop]) => (
-                  <div key={name} className="flex justify-between text-xs">
-                    <span className="font-mono">{name}</span>
-                    <span className="text-muted-foreground">
-                      {prop.type}{prop.required && '*'}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {/* Live Component Preview */}
-            <div className="flex-1 border rounded bg-white p-4 min-h-[200px]">
-              <div className="h-full">
-                <WebContainerPreview 
-                  projectSchema={project} 
-                  focusComponent={selectedComponent.id}
-                />
-              </div>
-            </div>
+          <div className="flex items-center gap-2">
+            <Button 
+              size="sm" 
+              onClick={() => handleAddToScene(selectedComponent.id)}
+              disabled={!liveScene}
+            >
+              Add to Scene
+            </Button>
+            <span className="text-xs text-muted-foreground">
+              {Object.keys(selectedComponent.props).length} props • {selectedComponent.source}
+            </span>
           </div>
         )}
 
-        {!selectedComponent && (
-          <div className="flex-1 flex items-center justify-center text-muted-foreground">
-            <div className="text-center">
-              <Component className="h-12 w-12 mx-auto mb-2 opacity-50" />
-              <p className="text-sm">Select a component to test</p>
-            </div>
-          </div>
-        )}
       </CardContent>
-    </Card>
+    </div>
   )
 
   const SceneCompositionArea = () => (
-    <Card className="h-full flex flex-col">
-      <CardHeader className="pb-3">
-        <div className="flex items-center justify-between">
-          <CardTitle className="text-lg flex items-center gap-2">
-            <Layers className="h-5 w-5" />
-            Scene Composition
-          </CardTitle>
-          <div className="flex items-center gap-2">
-            {liveScene && (
-              <Badge variant="outline">{liveScene.instances.length} instances</Badge>
-            )}
+    <div className="h-full flex flex-col">
+      <div className="flex items-center justify-between p-2 border-b">
+        <div className="flex items-center gap-2">
+          {liveScene && (
+            <span className="text-xs text-muted-foreground">{liveScene.instances.length} instances</span>
+          )}
+        </div>
+        <SceneCreationModal
+          project={project}
+          onUpdateProject={onUpdateProject}
+          uiActions={uiActions}
+          trigger={
             <Button size="sm" variant="outline">
-              <Square className="h-4 w-4 mr-2" />
               New Scene
             </Button>
-          </div>
-        </div>
-      </CardHeader>
+          }
+        />
+      </div>
       
-      <CardContent className="flex-1 p-0">
+      <div className="flex-1">
         <SceneLiveView
           scene={liveScene}
           componentLibrary={project.components}
           onInstanceSelect={handleInstanceSelect}
           selectedInstanceId={selectedInstanceId}
         />
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   )
 
   return (
     <div className="h-full flex flex-col">
       {/* Mode Toggle */}
-      <div className="flex items-center justify-between mb-4">
-        <Tabs value={previewMode} onValueChange={(value) => setPreviewMode(value as any)} className="w-auto">
-          <TabsList>
-            <TabsTrigger value="split" className="flex items-center gap-2">
-              <Eye className="h-4 w-4" />
-              Split View
-            </TabsTrigger>
-            <TabsTrigger value="component">Component Only</TabsTrigger>
-            <TabsTrigger value="scene">Scene Only</TabsTrigger>
+      <div className="flex items-center gap-4 mb-2">
+        <Tabs value={previewMode} onValueChange={(value) => setPreviewMode(value as any)}>
+          <TabsList className="h-8">
+            <TabsTrigger value="component" className="text-xs">Components</TabsTrigger>
+            <TabsTrigger value="scene" className="text-xs">Scenes</TabsTrigger>
           </TabsList>
         </Tabs>
 
-        {/* Scene Selector */}
         {project.scenes?.length > 0 && (
           <Select 
             value={activeScene?.id || ''} 
             onValueChange={(sceneId) => sceneManager.setActiveScene(sceneId)}
           >
-            <SelectTrigger className="w-48">
-              <SelectValue placeholder="Select scene..." />
+            <SelectTrigger className="w-32 h-8 text-xs">
+              <SelectValue placeholder="Scene..." />
             </SelectTrigger>
             <SelectContent>
               {(project.scenes || []).map(scene => (
-                <SelectItem key={scene.id} value={scene.id}>
+                <SelectItem key={scene.id} value={scene.id} className="text-xs">
                   {scene.name}
                 </SelectItem>
               ))}
@@ -248,22 +185,22 @@ export function UnifiedPreview({ project, onUpdateProject }: UnifiedPreviewProps
         )}
       </div>
 
-      {/* Preview Content */}
-      <div className="flex-1">
-        {previewMode === 'split' && (
-          <div className="grid grid-cols-2 gap-4 h-full">
-            <ComponentTestingArea />
-            <SceneCompositionArea />
-          </div>
-        )}
+      {/* Preview Content - Side by side layout */}
+      <div className="flex-1 flex gap-4">
+        {/* Left Side - Component Testing or Scene Composition */}
+        <div className="w-80 flex-shrink-0">
+          {previewMode === 'component' && <ComponentTestingArea />}
+          {previewMode === 'scene' && <SceneCompositionArea />}
+        </div>
         
-        {previewMode === 'component' && (
-          <ComponentTestingArea />
-        )}
-        
-        {previewMode === 'scene' && (
-          <SceneCompositionArea />
-        )}
+        {/* Right Side - Live React Preview */}
+        <div className="flex-1 min-w-0">
+          <EmbeddedPreview 
+            project={project}
+            focusComponent={selectedComponentId}
+            className="h-full"
+          />
+        </div>
       </div>
     </div>
   )

@@ -3,13 +3,13 @@ import { sceneManager } from '../services/sceneManager'
 import { ProjectSchema, ComponentSchema, Scene } from '../types/schema'
 
 export function useSceneManager(project: ProjectSchema | null) {
-  // Sync scene manager with project data
+  // Sync scene manager with project data (only on mount and project ID change)
   useEffect(() => {
     if (!project) return
 
     // Load project data into scene manager
     sceneManager.loadFromProject(project)
-  }, [project])
+  }, [project?.id]) // Only re-run when project ID changes, not on every update
 
   // Update project when scenes change
   const updateProjectWithScenes = useCallback((onUpdateProject: (updater: (prev: ProjectSchema) => ProjectSchema) => void) => {

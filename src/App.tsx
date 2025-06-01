@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import { ComponentGeneratorInterface } from './components/ComponentGenerator'
 import { ProjectSchemaViewer } from './components/ProjectSchemaViewer'
-import { WebContainerPreview } from './components/WebContainerPreview'
 import { UnifiedPreview } from './components/UnifiedPreview'
 import { ProjectManager } from './components/ProjectManager'
 import { ImageGenerator } from './components/ImageGenerator'
@@ -112,48 +111,19 @@ function App() {
 
   return (
     <AgentSidebarWrapper
-      project={currentProject}
-      onUpdateProject={updateCurrentProject}
-      uiActions={uiActions}
-    >
+        project={currentProject}
+        onUpdateProject={updateCurrentProject}
+        uiActions={uiActions}
+        onShowProjectManager={() => setShowProjectManager(true)}
+        headerActions={<ModeToggle />}
+      >
         <div className="flex flex-1 flex-col gap-4 p-4">
-          <div className="flex items-center justify-between">
-            <div className="space-y-1">
-              <h1 className="text-2xl font-bold">HedgeKit</h1>
-              <p className="text-sm text-muted-foreground">
-                Collaborative Agents for More Precise UI Generation
-              </p>
-            </div>
-            <ModeToggle />
-          </div>
-          
-          <div className="flex items-center gap-4 text-sm">
-            <span className="text-blue-600 font-medium">
-              📁 {currentProject.name}
-            </span>
-            {currentProject.components.length > 0 && (
-              <span className="text-green-600">
-                ✓ {currentProject.components.length} components
-              </span>
-            )}
-            {(currentProject.assets?.length || 0) > 0 && (
-              <span className="text-purple-600">
-                🎨 {currentProject.assets?.length} assets
-              </span>
-            )}
-            <button 
-              onClick={() => setShowProjectManager(true)}
-              className="text-blue-600 hover:text-blue-800 underline"
-            >
-              Switch Project
-            </button>
-          </div>
           
           <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'build' | 'project' | 'preview')} className="flex-1 flex flex-col">
             <TabsList className="grid w-full grid-cols-3">
               <TabsTrigger value="build">🔨 Build Tools</TabsTrigger>
               <TabsTrigger value="project">📁 Project</TabsTrigger>
-              <TabsTrigger value="preview">👁️ Live Preview</TabsTrigger>
+              <TabsTrigger value="preview">👁️ Preview</TabsTrigger>
             </TabsList>
             
             <TabsContent value="build" className="flex-1 mt-4">
@@ -197,12 +167,13 @@ function App() {
                 <UnifiedPreview 
                   project={currentProject} 
                   onUpdateProject={updateCurrentProject}
+                  uiActions={uiActions}
                 />
               </div>
             </TabsContent>
           </Tabs>
         </div>
-    </AgentSidebarWrapper>
+      </AgentSidebarWrapper>
   )
 }
 

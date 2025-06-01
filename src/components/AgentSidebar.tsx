@@ -35,8 +35,8 @@ export function AIAgentSidebar({ project, onUpdateProject, uiActions, ...props }
                   <Bot className="size-4" />
                 </div>
                 <div className="grid flex-1 text-left text-sm leading-tight group-data-[collapsible=icon]:hidden">
-                  <span className="truncate font-semibold">AI Agent Studio</span>
-                  <span className="truncate text-xs">Multi-Provider</span>
+                  <span className="truncate font-semibold">HedgeKit</span>
+                  <span className="truncate text-xs">Collaborative Agents for More Precise UI Generation</span>
                 </div>
               </div>
             </SidebarMenuButton>
@@ -65,12 +65,16 @@ export function AgentSidebarWrapper({
   project, 
   onUpdateProject, 
   uiActions, 
-  children 
+  children,
+  onShowProjectManager,
+  headerActions
 }: {
   project: ProjectSchema
   onUpdateProject: (updater: (prev: ProjectSchema) => ProjectSchema) => void
   uiActions?: UIActions
   children: React.ReactNode
+  onShowProjectManager?: () => void
+  headerActions?: React.ReactNode
 }) {
   return (
     <SidebarProvider
@@ -86,11 +90,35 @@ export function AgentSidebarWrapper({
         uiActions={uiActions}
       />
       <SidebarInset>
-        <header className="flex h-16 shrink-0 items-center gap-2 px-4 border-b">
-          <SidebarTrigger className="-ml-1" />
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Bot className="size-4" />
-            <span>AI-Powered Component Builder</span>
+        <header className="flex h-16 shrink-0 items-center justify-between gap-4 px-4 border-b">
+          <div className="flex items-center gap-4">
+            <SidebarTrigger className="-ml-1" />
+            <div className="flex items-center gap-4 text-sm">
+              <span className="text-blue-600 font-medium">
+                📁 {project.name}
+              </span>
+              {project.components.length > 0 && (
+                <span className="text-green-600">
+                  ✓ {project.components.length} components
+                </span>
+              )}
+              {(project.assets?.length || 0) > 0 && (
+                <span className="text-purple-600">
+                  🎨 {project.assets?.length} assets
+                </span>
+              )}
+              {onShowProjectManager && (
+                <button 
+                  onClick={onShowProjectManager}
+                  className="text-blue-600 hover:text-blue-800 underline"
+                >
+                  Switch Project
+                </button>
+              )}
+            </div>
+          </div>
+          <div className="flex items-center">
+            {headerActions}
           </div>
         </header>
         <div className="flex flex-1 flex-col">

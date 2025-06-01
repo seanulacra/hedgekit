@@ -97,8 +97,8 @@ export const agentTools = [
   {
     type: "function" as const,
     function: {
-      name: "get_webcontainer_preview",
-      description: "Get information about the current live preview state",
+      name: "get_embedded_preview",
+      description: "Get information about the current embedded preview state and sample components",
       parameters: {
         type: "object",
         properties: {},
@@ -157,6 +157,99 @@ export const agentTools = [
         required: ["componentId"]
       }
     }
+  },
+  {
+    type: "function" as const,
+    function: {
+      name: "create_scene",
+      description: "Create a new scene layout with specified components and layout",
+      parameters: {
+        type: "object",
+        properties: {
+          name: {
+            type: "string",
+            description: "Name for the scene"
+          },
+          description: {
+            type: "string",
+            description: "Description of the scene layout and purpose"
+          },
+          layout_type: {
+            type: "string",
+            enum: ["freeform", "grid", "flex"],
+            description: "Type of layout for the scene"
+          },
+          width: {
+            type: "number",
+            description: "Width of the scene canvas in pixels (default: 1200)"
+          },
+          height: {
+            type: "number", 
+            description: "Height of the scene canvas in pixels (default: 800)"
+          },
+          components: {
+            type: "array",
+            description: "Array of component instances to add to the scene",
+            items: {
+              type: "object",
+              properties: {
+                componentId: {
+                  type: "string",
+                  description: "ID of the component to add"
+                },
+                x: {
+                  type: "number",
+                  description: "X position in pixels"
+                },
+                y: {
+                  type: "number", 
+                  description: "Y position in pixels"
+                },
+                props: {
+                  type: "object",
+                  description: "Props to pass to the component instance"
+                }
+              },
+              required: ["componentId", "x", "y"]
+            }
+          }
+        },
+        required: ["name", "description"]
+      }
+    }
+  },
+  {
+    type: "function" as const,
+    function: {
+      name: "add_component_to_scene",
+      description: "Add a component instance to an existing scene",
+      parameters: {
+        type: "object",
+        properties: {
+          sceneId: {
+            type: "string",
+            description: "ID of the scene to add component to"
+          },
+          componentId: {
+            type: "string",
+            description: "ID of the component to add"
+          },
+          x: {
+            type: "number",
+            description: "X position in pixels"
+          },
+          y: {
+            type: "number",
+            description: "Y position in pixels"
+          },
+          props: {
+            type: "object",
+            description: "Props to pass to the component instance"
+          }
+        },
+        required: ["sceneId", "componentId", "x", "y"]
+      }
+    }
   }
 ]
 
@@ -165,6 +258,8 @@ export interface UIActions {
   switchTab?: (tab: 'build' | 'project' | 'preview') => void
   showComponentCode?: (componentId: string) => void
   focusPreviewComponent?: (componentId: string) => void
+  createScene?: (name: string, description: string) => void
+  addComponentToScene?: (sceneId: string, componentId: string, x: number, y: number, props?: any) => void
 }
 
 // Tool execution functions
@@ -189,8 +284,8 @@ export class AgentToolExecutor {
       case "edit_image_asset":
         return this.editImageAsset(args)
       
-      case "get_webcontainer_preview":
-        return this.getWebContainerPreview()
+      case "get_embedded_preview":
+        return this.getEmbeddedPreview()
       
       case "switch_ui_tab":
         return this.switchUITab(args)
@@ -200,6 +295,12 @@ export class AgentToolExecutor {
       
       case "focus_preview_component":
         return this.focusPreviewComponent(args)
+      
+      case "create_scene":
+        return this.createScene(args)
+      
+      case "add_component_to_scene":
+        return this.addComponentToScene(args)
       
       default:
         throw new Error(`Unknown function: ${functionName}`)
@@ -397,19 +498,20 @@ export class AgentToolExecutor {
     }
   }
 
-  private getWebContainerPreview() {
-    // This would ideally connect to the WebContainer instance
-    // For now, return project structure info
+  private getEmbeddedPreview() {
+    // Return information about the embedded preview system
     return {
       success: true,
       data: {
-        status: 'running',
+        status: 'ready',
+        preview_type: 'embedded',
         components_count: this.project.components.length,
         has_assets: (this.project.assets?.length || 0) > 0,
         framework: this.project.framework,
-        last_build: this.project.updatedAt
+        last_updated: this.project.updatedAt,
+        sample_components: ['SampleButton', 'SampleCard', 'SampleForm', 'CharacterCard']
       },
-      summary: `WebContainer preview is running with ${this.project.components.length} components`
+      summary: `Embedded preview is ready with ${this.project.components.length} components. Supports live rendering of sample components.`
     }
   }
 
@@ -485,6 +587,137 @@ export class AgentToolExecutor {
       success: false,
       error: 'Preview component focus not available',
       summary: 'Preview component focus is not currently supported'
+    }
+  }
+
+  private createScene(args: { 
+    name: string, 
+    description: string, 
+    layout_type?: string, 
+    width?: number, 
+    height?: number,
+    components?: Array<{componentId: string, x: number, y: number, props?: any}>
+  }) {
+    try {
+      const { 
+        name, 
+        description, 
+        layout_type = 'freeform', 
+        width = 1200, 
+        height = 800,
+        components = []
+      } = args
+
+      // Import scene manager
+      const { sceneManager } = require('./sceneManager')
+      
+      // Create the scene
+      const scene = sceneManager.createScene(name, {
+        type: layout_type as any,
+        container: {
+          width,
+          height,
+          background: '#ffffff'
+        }
+      })
+
+      // Add components to the scene
+      for (const comp of components) {
+        const component = this.project.components.find(c => c.id === comp.componentId)
+        if (component) {
+          sceneManager.addComponentToScene(
+            scene.id,
+            comp.componentId,
+            comp.props || {},
+            { x: comp.x, y: comp.y }
+          )
+        }
+      }
+
+      // Set as active scene
+      sceneManager.setActiveScene(scene.id)
+
+      // Update project
+      this.updateProject(prev => sceneManager.exportToProject(prev))
+
+      // Call UI action if available
+      if (this.uiActions?.createScene) {
+        this.uiActions.createScene(name, description)
+      }
+
+      return {
+        success: true,
+        data: { 
+          sceneId: scene.id, 
+          name, 
+          description,
+          componentsAdded: components.length
+        },
+        summary: `Created scene "${name}" with ${components.length} components. Set as active scene.`
+      }
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Scene creation failed',
+        summary: `Failed to create scene: ${error instanceof Error ? error.message : 'Unknown error'}`
+      }
+    }
+  }
+
+  private addComponentToScene(args: { 
+    sceneId: string, 
+    componentId: string, 
+    x: number, 
+    y: number, 
+    props?: any 
+  }) {
+    try {
+      const { sceneId, componentId, x, y, props = {} } = args
+
+      const component = this.project.components.find(c => c.id === componentId)
+      if (!component) {
+        throw new Error(`Component with ID ${componentId} not found`)
+      }
+
+      // Import scene manager
+      const { sceneManager } = require('./sceneManager')
+      
+      const scene = sceneManager.getScene(sceneId)
+      if (!scene) {
+        throw new Error(`Scene with ID ${sceneId} not found`)
+      }
+
+      // Add component instance to scene
+      const instance = sceneManager.addComponentToScene(sceneId, componentId, props, { x, y })
+      
+      if (!instance) {
+        throw new Error('Failed to add component to scene')
+      }
+
+      // Update project
+      this.updateProject(prev => sceneManager.exportToProject(prev))
+
+      // Call UI action if available
+      if (this.uiActions?.addComponentToScene) {
+        this.uiActions.addComponentToScene(sceneId, componentId, x, y, props)
+      }
+
+      return {
+        success: true,
+        data: { 
+          instanceId: instance.id,
+          componentName: component.name,
+          sceneName: scene.name,
+          position: { x, y }
+        },
+        summary: `Added component "${component.name}" to scene "${scene.name}" at position (${x}, ${y})`
+      }
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to add component to scene',
+        summary: `Failed to add component to scene: ${error instanceof Error ? error.message : 'Unknown error'}`
+      }
     }
   }
 }
