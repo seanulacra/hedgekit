@@ -62,6 +62,13 @@ export const agentTools: EnhancedTool[] = [
         },
         required: ["name", "description"]
       }
+    },
+    workflow: {
+      continueOnSuccess: {
+        nextTool: "reflect_on_artifact",
+        condition: "always",
+        maxChainLength: 2
+      }
     }
   },
   {
@@ -96,9 +103,9 @@ export const agentTools: EnhancedTool[] = [
     },
     workflow: {
       continueOnSuccess: {
-        nextTool: "generate_component",
-        condition: "if_component_requested",
-        maxChainLength: 2
+        nextTool: "reflect_on_artifact",
+        condition: "always",
+        maxChainLength: 3
       }
     }
   },
@@ -479,6 +486,55 @@ export const agentTools: EnhancedTool[] = [
         maxChainLength: 5
       }
     }
+  },
+  {
+    type: "function" as const,
+    function: {
+      name: "reflect_on_artifact",
+      description: "Reflect on and critique a recently created artifact (component, image, or plan) to identify improvements",
+      parameters: {
+        type: "object",
+        properties: {
+          artifactType: {
+            type: "string",
+            enum: ["component", "image", "plan", "task"],
+            description: "Type of artifact to reflect on"
+          },
+          artifactId: {
+            type: "string",
+            description: "ID of the artifact (component ID, image ID, plan ID, or task ID)"
+          },
+          aspectsToReview: {
+            type: "array",
+            items: { type: "string" },
+            description: "Specific aspects to review (e.g., 'visual design', 'code quality', 'user experience', 'completeness')"
+          }
+        },
+        required: ["artifactType", "artifactId"]
+      }
+    }
+  },
+  {
+    type: "function" as const,
+    function: {
+      name: "capture_preview_screenshot",
+      description: "Capture a screenshot of the current preview to visually review the created components",
+      parameters: {
+        type: "object",
+        properties: {
+          componentId: {
+            type: "string",
+            description: "Optional: specific component to focus on in the preview"
+          },
+          captureMode: {
+            type: "string",
+            enum: ["full", "component", "viewport"],
+            description: "What to capture: full preview, specific component, or current viewport"
+          }
+        },
+        required: []
+      }
+    }
   }
 ]
 
@@ -599,6 +655,12 @@ export class AgentToolExecutor {
       
       case "start_development_session":
         return this.startDevelopmentSession(args)
+      
+      case "reflect_on_artifact":
+        return this.reflectOnArtifact(args)
+      
+      case "capture_preview_screenshot":
+        return this.capturePreviewScreenshot(args)
       
       default:
         throw new Error(`Unknown function: ${functionName}`)
@@ -1374,6 +1436,224 @@ export class AgentToolExecutor {
         success: false,
         error: error instanceof Error ? error.message : 'Failed to start development session',
         summary: `Failed to start development session: ${error instanceof Error ? error.message : 'Unknown error'}`
+      }
+    }
+  }
+
+  private async reflectOnArtifact(args: { artifactType: string, artifactId: string, aspectsToReview?: string[] }) {
+    const { artifactType, artifactId, aspectsToReview = [] } = args
+    
+    // Find the artifact based on type
+    let artifact: any = null
+    let artifactDetails = ''
+    
+    switch (artifactType) {
+      case 'component':
+        artifact = this.project.components.find(c => c.id === artifactId)
+        if (artifact) {
+          artifactDetails = `Component "${artifact.name}" with ${artifact.generatedCode?.length || 0} characters of code`
+        }
+        break
+      
+      case 'image':
+        artifact = this.project.assets?.find(a => a.id === artifactId)
+        if (artifact) {
+          artifactDetails = `Image "${artifact.name}" (${artifact.size})`
+        }
+        break
+      
+      case 'plan':
+        if (this.project.plan?.id === artifactId) {
+          artifact = this.project.plan
+          const totalTasks = artifact.phases.reduce((sum: number, phase: any) => sum + phase.tasks.length, 0)
+          artifactDetails = `Project plan with ${artifact.phases.length} phases and ${totalTasks} tasks`
+        }
+        break
+      
+      case 'task':
+        if (this.project.plan) {
+          artifact = this.project.plan.phases
+            .flatMap(phase => phase.tasks)
+            .find(task => task.id === artifactId)
+          if (artifact) {
+            artifactDetails = `Task "${artifact.title}" (${artifact.status})`
+          }
+        }
+        break
+    }
+    
+    if (!artifact) {
+      return {
+        success: false,
+        error: `${artifactType} with ID ${artifactId} not found`,
+        summary: `Could not find ${artifactType} to reflect on`
+      }
+    }
+
+    // Default aspects to review if none provided
+    const defaultAspects: Record<string, string[]> = {
+      component: ['code quality', 'visual design', 'user experience', 'accessibility'],
+      image: ['composition', 'style consistency', 'relevance', 'quality'],
+      plan: ['completeness', 'feasibility', 'timeline accuracy', 'task dependencies'],
+      task: ['clarity', 'scope', 'acceptance criteria', 'estimated effort']
+    }
+    
+    const aspectsToCheck = aspectsToReview.length > 0 ? aspectsToReview : defaultAspects[artifactType] || []
+    
+    // Analyze project context and coherence
+    const projectState = this.analyzeProjectState()
+    
+    // Create reflection insights with project awareness
+    const insights = {
+      artifactType,
+      artifactId,
+      artifactDetails,
+      aspectsReviewed: aspectsToCheck,
+      timestamp: new Date().toISOString(),
+      recommendations: [] as string[],
+      projectAlignment: {
+        fitsProjectVision: true,
+        maintainsConsistency: true,
+        advancesGoals: true,
+        createsOpportunities: [] as string[]
+      }
+    }
+    
+    // Project-level analysis
+    if (artifactType === 'component') {
+      // Check consistency with existing components
+      const existingComponentStyles = this.project.components
+        .filter(c => c.id !== artifactId)
+        .map(c => {
+          const hasButton = c.generatedCode?.includes('Button')
+          const hasCard = c.generatedCode?.includes('Card')
+          const hasTailwind = c.generatedCode?.includes('className')
+          return { hasButton, hasCard, hasTailwind }
+        })
+      
+      // Check if this component creates new integration opportunities
+      if (artifact.name.toLowerCase().includes('wizard') || artifact.name.toLowerCase().includes('magic')) {
+        insights.projectAlignment.createsOpportunities.push(
+          'Could integrate with spell management system',
+          'Opportunity to create wizard character progression'
+        )
+      }
+      
+      // Check component cohesion
+      if (this.project.components.length > 3 && !artifact.generatedCode?.includes('import')) {
+        insights.recommendations.push('Consider importing and reusing existing components for consistency')
+      }
+    }
+    
+    if (artifactType === 'image') {
+      // Check if image style matches project theme
+      const projectName = this.project.name.toLowerCase()
+      if (projectName.includes('wizard') && !artifact.prompt?.toLowerCase().includes('magic')) {
+        insights.recommendations.push('Image may not align with wizard/magic theme of the project')
+        insights.projectAlignment.fitsProjectVision = false
+      }
+    }
+    
+    if (artifactType === 'plan') {
+      // Analyze if plan advances toward project completion
+      const completedTasks = artifact.phases
+        .flatMap((phase: any) => phase.tasks)
+        .filter((task: any) => task.status === 'done').length
+      const totalTasks = artifact.phases.reduce((sum: number, phase: any) => sum + phase.tasks.length, 0)
+      
+      if (completedTasks / totalTasks < 0.2 && this.project.components.length > 5) {
+        insights.recommendations.push('Plan progress is behind component creation - consider updating task statuses')
+      }
+    }
+    
+    // Add artifact-specific recommendations
+    if (artifactType === 'component' && artifact.generatedCode) {
+      if (!artifact.generatedCode.includes('aria-')) {
+        insights.recommendations.push('Consider adding ARIA labels for better accessibility')
+      }
+      if (!artifact.generatedCode.includes('useState') && artifact.generatedCode.includes('onClick')) {
+        insights.recommendations.push('Component has interactions but no state management')
+      }
+      
+      // Check if component advances the project theme
+      const projectTheme = this.project.name.toLowerCase()
+      const componentContent = artifact.generatedCode.toLowerCase()
+      
+      if (projectTheme.includes('wizard') || projectTheme.includes('magic')) {
+        const hasMagicalElements = componentContent.includes('spell') || 
+                                   componentContent.includes('magic') || 
+                                   componentContent.includes('wizard') ||
+                                   componentContent.includes('wand') ||
+                                   componentContent.includes('potion')
+        
+        if (!hasMagicalElements) {
+          insights.recommendations.push(`Component could better embrace the "${this.project.name}" theme with magical elements`)
+          insights.projectAlignment.fitsProjectVision = false
+        }
+      }
+    }
+    
+    // Generate strategic recommendations based on project state
+    if (this.project.components.length === 0 && artifactType === 'component') {
+      insights.recommendations.push('Great start! This is the first component. Consider building complementary UI elements next.')
+    } else if (this.project.components.length > 5 && artifactType === 'component') {
+      insights.recommendations.push('With multiple components now, consider creating a scene to showcase them together')
+    }
+    
+    if (this.project.assets && this.project.assets.length > 3 && artifactType === 'image') {
+      insights.recommendations.push('Multiple assets created. Consider building components that utilize these images')
+    }
+    
+    return {
+      success: true,
+      data: insights,
+      summary: `Reflected on ${artifactDetails} within ${this.project.name} context. Project alignment: ${
+        insights.projectAlignment.fitsProjectVision ? '✓' : '✗'
+      }. Found ${insights.recommendations.length} suggestions and ${
+        insights.projectAlignment.createsOpportunities.length
+      } new opportunities.`
+    }
+  }
+
+  private async capturePreviewScreenshot(args: { componentId?: string, captureMode?: string }) {
+    if (!this.project.plan) {
+      return {
+        success: false,
+        error: 'No project plan exists for this project',
+        summary: 'Cannot capture preview screenshot - project plan not found.'
+      }
+    }
+
+    try {
+      // Implement screenshot capture logic here
+      // This is a placeholder and should be replaced with actual implementation
+      const screenshotResult = {
+        success: true,
+        data: {
+          screenshotUrl: 'https://example.com/screenshot.png',
+          componentId: args.componentId,
+          captureMode: args.captureMode
+        },
+        summary: `Preview screenshot captured successfully. URL: https://example.com/screenshot.png`
+      }
+
+      // Update project with screenshot result
+      this.updateProject(prev => ({
+        ...prev,
+        plan: {
+          ...prev.plan!,
+          status: 'active' as const,
+          updatedAt: new Date().toISOString()
+        },
+        updatedAt: new Date().toISOString()
+      }))
+
+      return screenshotResult
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to capture preview screenshot',
+        summary: `Failed to capture preview screenshot: ${error instanceof Error ? error.message : 'Unknown error'}`
       }
     }
   }

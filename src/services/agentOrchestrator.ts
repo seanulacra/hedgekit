@@ -15,7 +15,7 @@ export class AgentOrchestrator {
   private currentProvider: AgentProvider = 'claude-sonnet-4'
   
   // Action budget system
-  private actionBudget: number = 20  // Increased from 10 to allow for longer workflows
+  private actionBudget: number = 7  // Optimal range for thoughtful execution
   private actionsBudgetUsed: number = 0
   private sessionStartTime: number = Date.now()
 
@@ -299,6 +299,40 @@ export class AgentOrchestrator {
               name: `${data.name || 'Image'}Component`,
               description: `Component featuring the generated image: ${data.name || 'custom image'}`,
               requirements: `Create a React component that displays the image at: ${data.cdnUrl}. Make it visually appealing with proper styling.`
+            }
+          }
+        }
+        break
+        
+      case 'reflect_on_artifact':
+        // Reflect on the artifact that was just created
+        if (lastTool?.result?.success && lastTool?.result?.data) {
+          const data = lastTool.result.data
+          
+          // Determine artifact type and ID from the last tool
+          if (lastTool.function === 'generate_component' && data.component) {
+            return {
+              artifactType: 'component',
+              artifactId: data.component.id,
+              aspectsToReview: ['code quality', 'project fit', 'theme alignment', 'reusability']
+            }
+          } else if (lastTool.function === 'generate_image_asset' && data.assetId) {
+            return {
+              artifactType: 'image',
+              artifactId: data.assetId,
+              aspectsToReview: ['style consistency', 'theme alignment', 'visual quality']
+            }
+          } else if (lastTool.function === 'generate_project_plan' && data.plan) {
+            return {
+              artifactType: 'plan',
+              artifactId: data.plan.id,
+              aspectsToReview: ['completeness', 'feasibility', 'scope alignment']
+            }
+          } else if (lastTool.function === 'execute_task' && data.taskId) {
+            return {
+              artifactType: 'task',
+              artifactId: data.taskId,
+              aspectsToReview: ['completion quality', 'acceptance criteria', 'integration']
             }
           }
         }
